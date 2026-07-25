@@ -24,7 +24,7 @@ pub enum OpError {
     WrappedClassified {
         chain: String,
         code: String,
-        class: crate::failure::FailureClass,
+        class: crate::failure::AttributionClass,
         reason: String,
         /// Media URN of the ARGUMENT the origin attributed the failure to,
         /// when — and only when — its emit source could name one (argument
@@ -41,14 +41,14 @@ pub enum OpError {
 
     /// A failure carrying its FULL identity from the emit source: the
     /// machine-readable `code` the origin error declares (`error_code()`),
-    /// the failure CLASS it declares (`failure_class()` — whose problem it
+    /// the failure CLASS it declares (`attribution_class()` — whose problem it
     /// is), and the leaf human message. Wrapping layers construct this from
     /// classified origins instead of folding everything into prose; the
     /// engine's run record and retry policy read it structurally.
     #[error("{code}: {message}")]
     Classified {
         code: String,
-        class: crate::failure::FailureClass,
+        class: crate::failure::AttributionClass,
         message: String,
         /// Media URN of the ARGUMENT the emit source attributed the failure
         /// to, when it could name one. `None` means "no single argument is
@@ -65,11 +65,11 @@ impl OpError {
     /// The failure class this error DECLARES. Classified variants carry
     /// their origin's declaration; everything else is `Internal` —
     /// unclassified means "ours", never a guess (docs/failure-taxonomy.md).
-    pub fn failure_class(&self) -> crate::failure::FailureClass {
+    pub fn attribution_class(&self) -> crate::failure::AttributionClass {
         match self {
             Self::Classified { class, .. } => *class,
             Self::WrappedClassified { class, .. } => *class,
-            _ => crate::failure::FailureClass::Internal,
+            _ => crate::failure::AttributionClass::Internal,
         }
     }
 
@@ -215,15 +215,15 @@ mod tests {
     // taxonomy's own rule (docs/failure-taxonomy.md).
     #[test]
     fn test1901_classified_accessors() {
-        use crate::failure::FailureClass;
+        use crate::failure::AttributionClass;
 
         let classified = OpError::Classified {
             code: "CONTEXT_OVERFLOW".to_string(),
-            class: FailureClass::Input,
+            class: AttributionClass::Input,
             message: "prompt too large".to_string(),
             arg_urn: Some("media:prompt;textable".to_string()),
         };
-        assert_eq!(classified.failure_class(), FailureClass::Input);
+        assert_eq!(classified.attribution_class(), AttributionClass::Input);
         assert_eq!(classified.failure_code(), Some("CONTEXT_OVERFLOW"));
         assert_eq!(classified.failure_reason(), "prompt too large");
         assert_eq!(
@@ -236,11 +236,11 @@ mod tests {
         let wrapped = OpError::WrappedClassified {
             chain: "Op 3-generate failed: CONTEXT_OVERFLOW: prompt too large".to_string(),
             code: "CONTEXT_OVERFLOW".to_string(),
-            class: FailureClass::Input,
+            class: AttributionClass::Input,
             reason: "prompt too large".to_string(),
             arg_urn: None,
         };
-        assert_eq!(wrapped.failure_class(), FailureClass::Input);
+        assert_eq!(wrapped.attribution_class(), AttributionClass::Input);
         assert_eq!(wrapped.failure_code(), Some("CONTEXT_OVERFLOW"));
         assert_eq!(
             wrapped.failure_arg_urn(),
@@ -259,7 +259,7 @@ mod tests {
         );
 
         let plain = OpError::ExecutionFailed("boom".to_string());
-        assert_eq!(plain.failure_class(), FailureClass::Internal);
+        assert_eq!(plain.attribution_class(), AttributionClass::Internal);
         assert_eq!(plain.failure_code(), None);
     }
 
@@ -267,17 +267,17 @@ mod tests {
     // the run-record path clones the terminal error before persisting.
     #[test]
     fn test1902_clone_preserves_classification() {
-        use crate::failure::FailureClass;
+        use crate::failure::AttributionClass;
 
         let original = OpError::WrappedClassified {
             chain: "Op 'x' failed: GPU_OUT_OF_MEMORY: no VRAM".to_string(),
             code: "GPU_OUT_OF_MEMORY".to_string(),
-            class: FailureClass::Resource,
+            class: AttributionClass::Resource,
             reason: "no VRAM".to_string(),
             arg_urn: Some("media:model-spec;textable".to_string()),
         };
         let cloned = original.clone();
-        assert_eq!(cloned.failure_class(), FailureClass::Resource);
+        assert_eq!(cloned.attribution_class(), AttributionClass::Resource);
         assert_eq!(cloned.failure_code(), Some("GPU_OUT_OF_MEMORY"));
         assert_eq!(cloned.failure_reason(), "no VRAM");
         assert_eq!(cloned.failure_arg_urn(), Some("media:model-spec;textable"));

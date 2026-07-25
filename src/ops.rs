@@ -153,11 +153,11 @@ mod tests {
     // (docs/failure-taxonomy.md).
     #[test]
     fn test1903_wrap_preserves_classification() {
-        use crate::failure::FailureClass;
+        use crate::failure::AttributionClass;
 
         let classified = OpError::Classified {
             code: "CONTEXT_OVERFLOW".to_string(),
-            class: FailureClass::Input,
+            class: AttributionClass::Input,
             message: "prompt too large".to_string(),
             arg_urn: Some("media:prompt;textable".to_string()),
         };
@@ -167,7 +167,7 @@ mod tests {
                 assert!(chain.contains("GenerateOp"), "the wrap names the op");
                 assert!(chain.contains("prompt too large"));
                 assert_eq!(code, "CONTEXT_OVERFLOW");
-                assert_eq!(class, FailureClass::Input);
+                assert_eq!(class, AttributionClass::Input);
                 assert_eq!(reason, "prompt too large");
                 assert_eq!(
                     arg_urn.as_deref(),
@@ -185,7 +185,7 @@ mod tests {
             OpError::WrappedClassified {
                 chain: "Op 'GenerateOp' failed: CONTEXT_OVERFLOW: prompt too large".to_string(),
                 code: "CONTEXT_OVERFLOW".to_string(),
-                class: FailureClass::Input,
+                class: AttributionClass::Input,
                 reason: "prompt too large".to_string(),
                 arg_urn: Some("media:prompt;textable".to_string()),
             },
@@ -195,7 +195,7 @@ mod tests {
                 assert!(chain.contains("OuterBatch"));
                 assert!(chain.contains("GenerateOp"));
                 assert_eq!(code, "CONTEXT_OVERFLOW");
-                assert_eq!(class, FailureClass::Input);
+                assert_eq!(class, AttributionClass::Input);
                 assert_eq!(reason, "prompt too large");
                 assert_eq!(arg_urn.as_deref(), Some("media:prompt;textable"));
             }

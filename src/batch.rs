@@ -101,7 +101,7 @@ where
                             Some(code) => OpError::WrappedClassified {
                                 chain,
                                 code: code.to_string(),
-                                class: error.failure_class(),
+                                class: error.attribution_class(),
                                 reason: error.failure_reason(),
                                 arg_urn: error.failure_arg_urn().map(str::to_string),
                             },
