@@ -17,7 +17,7 @@ impl Op<()> for MockOp {
         println!("Executing: {}", self.0);
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&self.0).build()
     }
@@ -101,33 +101,33 @@ batch! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     // Set up context
     dry.insert("cso_limit", 2_usize);
     dry.insert("should_continue", true);
-    
+
     println!(" SOLUTION DEMONSTRATION \n");
-    
+
     println!("1. Sequential Content Selection:");
     let op1 = ContentSelectionOp::new();
     op1.perform(&mut dry, &mut wet).await?;
-    
+
     println!("\n2. Loop Content Selection:");
     let op2 = ContentSelectionLoopOp::new();
     op2.perform(&mut dry, &mut wet).await?;
-    
+
     println!("\n3. While Loop Content Selection:");
     dry.insert("should_continue", true);
     let op3 = ContentSelectionWhileOp::new();
     op3.perform(&mut dry, &mut wet).await?;
-    
+
     println!("\n4. The Original Failing Batch - Now Working!");
     let extraction_batch = CloseReadOpBatch::new();
     extraction_batch.perform(&mut dry, &mut wet).await?;
-    
+
     println!("\nOK All ops are now fully composable and interchangeable!");
     println!("OK No more 'trait bound not satisfied' errors!");
     println!("OK Clean, type-safe, and powerful macro system!");
-    
+
     Ok(())
 }

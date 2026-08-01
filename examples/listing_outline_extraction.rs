@@ -1,5 +1,5 @@
 use ops::prelude::*;
-use ops::{batch, ListingOutline, OutlineEntry, OutlineMetadata, generate_outline_schema};
+use ops::{batch, generate_outline_schema, ListingOutline, OutlineEntry, OutlineMetadata};
 use serde_json::json;
 
 // Mock structured query op for table of contents extraction
@@ -16,60 +16,95 @@ impl ListingOutlineExtractionOp {
 
 #[async_trait]
 impl Op<ListingOutline> for ListingOutlineExtractionOp {
-    async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<ListingOutline> {
+    async fn perform(
+        &self,
+        dry: &mut DryContext,
+        _wet: &mut WetContext,
+    ) -> OpResult<ListingOutline> {
         let content: String = dry.get("selected_content").unwrap_or_else(|| {
             "TABLE OF CONTENTS\n\nPart I: Foundations\nChapter 1: Introduction.............................3\n  1.1 Overview.....................................3\n  1.2 Scope........................................5\nChapter 2: Background..............................8\n\nPart II: Applications\nChapter 3: Methods................................15\n  3.1 Basic Methods...............................15\n  3.2 Advanced Techniques.........................18\nChapter 4: Results................................22\n\nAppendix A: Reference Data........................30\nIndex.............................................35".to_string()
         });
-        
+
         println!("Deep Dive into content (length: {} chars)", content.len());
-        
+
         // Create a realistic hierarchical Outline structure
         let mut outline = ListingOutline::new();
         outline.document_title = Some("Advanced Research Methods".to_string());
-        
+
         // Part I with chapters and sections
-        let mut part1 = OutlineEntry::new("Part I: Foundations".to_string(), Some("1".to_string()), 0)
-            .with_type("part".to_string());
-        
-        let mut chapter1 = OutlineEntry::new("Chapter 1: Introduction".to_string(), Some("3".to_string()), 1)
-            .with_type("chapter".to_string());
-        chapter1.add_child(OutlineEntry::new("1.1 Overview".to_string(), Some("3".to_string()), 2)
-            .with_type("section".to_string()));
-        chapter1.add_child(OutlineEntry::new("1.2 Scope".to_string(), Some("5".to_string()), 2)
-            .with_type("section".to_string()));
-        
-        let chapter2 = OutlineEntry::new("Chapter 2: Background".to_string(), Some("8".to_string()), 1)
-            .with_type("chapter".to_string());
-        
+        let mut part1 =
+            OutlineEntry::new("Part I: Foundations".to_string(), Some("1".to_string()), 0)
+                .with_type("part".to_string());
+
+        let mut chapter1 = OutlineEntry::new(
+            "Chapter 1: Introduction".to_string(),
+            Some("3".to_string()),
+            1,
+        )
+        .with_type("chapter".to_string());
+        chapter1.add_child(
+            OutlineEntry::new("1.1 Overview".to_string(), Some("3".to_string()), 2)
+                .with_type("section".to_string()),
+        );
+        chapter1.add_child(
+            OutlineEntry::new("1.2 Scope".to_string(), Some("5".to_string()), 2)
+                .with_type("section".to_string()),
+        );
+
+        let chapter2 = OutlineEntry::new(
+            "Chapter 2: Background".to_string(),
+            Some("8".to_string()),
+            1,
+        )
+        .with_type("chapter".to_string());
+
         part1.add_child(chapter1);
         part1.add_child(chapter2);
-        
+
         // Part II with chapters and sections
-        let mut part2 = OutlineEntry::new("Part II: Applications".to_string(), Some("15".to_string()), 0)
-            .with_type("part".to_string());
-        
-        let mut chapter3 = OutlineEntry::new("Chapter 3: Methods".to_string(), Some("15".to_string()), 1)
-            .with_type("chapter".to_string());
-        chapter3.add_child(OutlineEntry::new("3.1 Basic Methods".to_string(), Some("15".to_string()), 2)
-            .with_type("section".to_string()));
-        chapter3.add_child(OutlineEntry::new("3.2 Advanced Techniques".to_string(), Some("18".to_string()), 2)
-            .with_type("section".to_string()));
-        
-        let chapter4 = OutlineEntry::new("Chapter 4: Results".to_string(), Some("22".to_string()), 1)
-            .with_type("chapter".to_string());
-        
+        let mut part2 = OutlineEntry::new(
+            "Part II: Applications".to_string(),
+            Some("15".to_string()),
+            0,
+        )
+        .with_type("part".to_string());
+
+        let mut chapter3 =
+            OutlineEntry::new("Chapter 3: Methods".to_string(), Some("15".to_string()), 1)
+                .with_type("chapter".to_string());
+        chapter3.add_child(
+            OutlineEntry::new("3.1 Basic Methods".to_string(), Some("15".to_string()), 2)
+                .with_type("section".to_string()),
+        );
+        chapter3.add_child(
+            OutlineEntry::new(
+                "3.2 Advanced Techniques".to_string(),
+                Some("18".to_string()),
+                2,
+            )
+            .with_type("section".to_string()),
+        );
+
+        let chapter4 =
+            OutlineEntry::new("Chapter 4: Results".to_string(), Some("22".to_string()), 1)
+                .with_type("chapter".to_string());
+
         part2.add_child(chapter3);
         part2.add_child(chapter4);
-        
+
         // Appendices
-        let appendix = OutlineEntry::new("Appendix A: Reference Data".to_string(), Some("30".to_string()), 0)
-            .with_type("appendix".to_string());
-        
+        let appendix = OutlineEntry::new(
+            "Appendix A: Reference Data".to_string(),
+            Some("30".to_string()),
+            0,
+        )
+        .with_type("appendix".to_string());
+
         let index = OutlineEntry::new("Index".to_string(), Some("35".to_string()), 0)
             .with_type("index".to_string());
-        
+
         outline.entries = vec![part1, part2, appendix, index];
-        
+
         // Set metadata
         outline.metadata = OutlineMetadata {
             numbering_style: Some("mixed".to_string()),
@@ -79,12 +114,12 @@ impl Op<ListingOutline> for ListingOutlineExtractionOp {
             levels: outline.max_depth() + 1,
             structure_type: Some("parts_chapters".to_string()),
         };
-        
+
         outline.confidence = 0.95;
-        
+
         Ok(outline)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("ListingOutlineExtractionOp")
             .description("Extracts hierarchical table of contents from document content")
@@ -152,12 +187,12 @@ Appendix C: Interview Protocols.....................92
 Bibliography.......................................96
 Index.............................................103
         "#;
-        
+
         dry.insert("selected_content", mock_content.to_string());
         println!("Loaded Outline content for extraction");
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("LoadOutlineContentOp")
             .description("Loads table of contents content for extraction")
@@ -185,44 +220,58 @@ struct OutlineAnalysisOp;
 #[async_trait]
 impl Op<()> for OutlineAnalysisOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
-        let outline: ListingOutline = dry.get("extracted_outline")
+        let outline: ListingOutline = dry
+            .get("extracted_outline")
             .ok_or_else(|| OpError::ExecutionFailed("No Outline found in context".to_string()))?;
-        
+
         println!("\n TABLE OF CONTENTS ANALYSIS");
         println!("===============================");
-        
+
         if let Some(title) = &outline.document_title {
             println!("Document: {}", title);
         }
-        
+
         println!("Structure: {:?}", outline.metadata.structure_type);
         println!("Total entries: {}", outline.metadata.total_entries);
         println!("Hierarchy levels: {}", outline.metadata.levels);
         println!("Has page leaders: {}", outline.metadata.has_leaders);
         println!("Confidence: {:.1}%", outline.confidence * 100.0);
-        
+
         println!("\nHIERARCHICAL STRUCTURE:");
         for entry in &outline.entries {
             print_entry(entry, 0);
         }
-        
+
         println!("\n FLAT VIEW:");
         let flat = outline.flatten();
         for (i, entry) in flat.iter().enumerate() {
             let indent = "  ".repeat(entry.level as usize);
-            let page_info = entry.page.as_ref()
+            let page_info = entry
+                .page
+                .as_ref()
                 .map(|p| format!(" (page {})", p))
                 .unwrap_or_default();
-            let type_info = entry.entry_type.as_ref()
+            let type_info = entry
+                .entry_type
+                .as_ref()
                 .map(|t| format!(" [{}]", t))
                 .unwrap_or_default();
-            
-            println!("{}{}. {}{}{}{}", 
-                indent, i + 1, entry.title, page_info, type_info,
-                if entry.level > 0 { format!(" → {}", entry.path.join(" → ")) } else { String::new() }
+
+            println!(
+                "{}{}. {}{}{}{}",
+                indent,
+                i + 1,
+                entry.title,
+                page_info,
+                type_info,
+                if entry.level > 0 {
+                    format!(" → {}", entry.path.join(" → "))
+                } else {
+                    String::new()
+                }
             );
         }
-        
+
         println!("\n LEVEL ANALYSIS:");
         for level in 0..=outline.max_depth() {
             let entries_at_level = outline.entries_at_level(level);
@@ -234,10 +283,10 @@ impl Op<()> for OutlineAnalysisOp {
                 println!("  ... and {} more", entries_at_level.len() - 3);
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("OutlineAnalysisOp")
             .description("Analyzes extracted table of contents structure")
@@ -247,15 +296,19 @@ impl Op<()> for OutlineAnalysisOp {
 
 fn print_entry(entry: &OutlineEntry, depth: usize) {
     let indent = "  ".repeat(depth);
-    let page_info = entry.page.as_ref()
+    let page_info = entry
+        .page
+        .as_ref()
         .map(|p| format!(" → page {}", p))
         .unwrap_or_default();
-    let type_info = entry.entry_type.as_ref()
+    let type_info = entry
+        .entry_type
+        .as_ref()
         .map(|t| format!(" [{}]", t))
         .unwrap_or_default();
-    
+
     println!("{}{}{}{}", indent, entry.title, page_info, type_info);
-    
+
     for child in &entry.children {
         print_entry(child, depth + 1);
     }
@@ -270,12 +323,13 @@ struct StoreOutlineOp;
 impl Op<()> for StoreOutlineOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
         // Get Outline from the extraction step and store it for analysis
-        let outline: ListingOutline = dry.get("extracted_outline_temp")
+        let outline: ListingOutline = dry
+            .get("extracted_outline_temp")
             .ok_or_else(|| OpError::ExecutionFailed("No temporary Outline found".to_string()))?;
         dry.insert("extracted_outline", outline);
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("StoreOutlineOp")
             .description("Stores extracted Outline for subsequent analysis")
@@ -294,34 +348,40 @@ batch! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     println!(" TABLE OF CONTENTS EXTRACTION DEMO");
     println!("=====================================\n");
-    
+
     // Step 1: Load content
     let loading_step = OutlineLoadingStep::new();
     loading_step.perform(&mut dry, &mut wet).await?;
-    
+
     // Step 2: Extract Outline
     let extraction_step = OutlineExtractionStep::new();
     let extracted_outline = extraction_step.perform(&mut dry, &mut wet).await?;
-    
+
     // Store for analysis
     dry.insert("extracted_outline", extracted_outline.clone());
-    
+
     // Step 3: Analyze Outline
     let analysis_pipeline = OutlineAnalysisPipeline::new();
     analysis_pipeline.perform(&mut dry, &mut wet).await?;
-    
+
     println!("\nOK SCHEMA VALIDATION");
     println!("====================");
     let schema = generate_outline_schema();
-    println!("Generated JSON Schema with {} properties", 
-        schema["properties"].as_object().unwrap().len());
-    println!("Schema supports {} entry types", 
+    println!(
+        "Generated JSON Schema with {} properties",
+        schema["properties"].as_object().unwrap().len()
+    );
+    println!(
+        "Schema supports {} entry types",
         schema["definitions"]["OutlineEntry"]["properties"]["entry_type"]["enum"]
-            .as_array().unwrap().len());
-    
+            .as_array()
+            .unwrap()
+            .len()
+    );
+
     println!("\n USE CASES SUPPORTED:");
     println!("- Simple flat TOCs (title + page)");
     println!("- Chapter-based hierarchies");
@@ -329,6 +389,6 @@ async fn main() -> OpResult<()> {
     println!("- Mixed academic/technical document formats");
     println!("- Books, papers, reports, manuals");
     println!("- Different numbering styles (numeric, roman, alphabetic)");
-    
+
     Ok(())
 }

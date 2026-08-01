@@ -1,5 +1,5 @@
 use ops::prelude::*;
-use ops::{repeat_until, break_loop, continue_loop, abort};
+use ops::{abort, break_loop, continue_loop, repeat_until};
 
 // Example operation that can break, continue, or abort
 #[derive(Debug)]
@@ -10,10 +10,10 @@ struct ControlFlowOp {
 
 #[derive(Debug)]
 enum ControlAction {
-    Continue,  // Process normally
-    Skip,      // Skip to next iteration (continue_loop!)
-    Break,     // Exit the loop entirely (break_loop!)
-    Abort,     // Abort the entire operation (abort!)
+    Continue, // Process normally
+    Skip,     // Skip to next iteration (continue_loop!)
+    Break,    // Exit the loop entirely (break_loop!)
+    Abort,    // Abort the entire operation (abort!)
 }
 
 impl ControlFlowOp {
@@ -27,7 +27,7 @@ impl Op<String> for ControlFlowOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<String> {
         let iteration = dry.get::<usize>("iteration").unwrap_or(0);
         println!("Op {} executing in iteration {}", self.id, iteration);
-        
+
         match self.action {
             ControlAction::Continue => {
                 println!("  → Processing normally");
@@ -47,7 +47,7 @@ impl Op<String> for ControlFlowOp {
             }
         }
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&format!("ControlFlowOp-{}", self.id)).build()
     }
@@ -70,16 +70,21 @@ impl Op<String> for ConditionCheckOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<String> {
         let iteration = dry.get::<usize>("iteration").unwrap_or(0);
         let should_continue = iteration < self.max_iterations;
-        
-        println!("ConditionCheck: iteration {} < {}: {}", 
-                iteration, self.max_iterations, should_continue);
-        
+
+        println!(
+            "ConditionCheck: iteration {} < {}: {}",
+            iteration, self.max_iterations, should_continue
+        );
+
         // Update the condition for the next iteration
         dry.insert("should_continue", should_continue);
-        
-        Ok(format!("ConditionCheck-Iter{}-Continue{}", iteration, should_continue))
+
+        Ok(format!(
+            "ConditionCheck-Iter{}-Continue{}",
+            iteration, should_continue
+        ))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("ConditionCheckOp").build()
     }
@@ -103,7 +108,7 @@ repeat_until! {
 // Example 2: Loop with break
 repeat_until! {
     LoopWithBreak<String> = {
-        counter: "iteration", 
+        counter: "iteration",
         condition: "should_continue",
         max_iterations: 10,
         ops: [
@@ -147,9 +152,9 @@ repeat_until! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     println!(" LOOP CONTROL FLOW DEMONSTRATIONS \n");
-    
+
     // Example 1: continue_loop demonstration
     println!("=== Example 1: continue_loop! behavior ===");
     dry.insert("should_continue", true);
@@ -163,35 +168,41 @@ async fn main() -> OpResult<()> {
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n=== Example 2: break_loop! behavior ===");
     dry.clear_control_flags();
     dry.insert("should_continue", true);
     let break_loop = LoopWithBreak::new();
     match break_loop.perform(&mut dry, &mut wet).await {
         Ok(results) => {
-            println!("OK Loop with break completed with {} results:", results.len());
+            println!(
+                "OK Loop with break completed with {} results:",
+                results.len()
+            );
             for (i, result) in results.iter().enumerate() {
                 println!("  Result {}: {}", i, result);
             }
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n=== Example 3: abort! behavior ===");
     dry.clear_control_flags();
     dry.insert("should_continue", true);
     let abort_loop = LoopWithAbort::new();
     match abort_loop.perform(&mut dry, &mut wet).await {
         Ok(results) => {
-            println!("OK Loop with abort completed with {} results:", results.len());
+            println!(
+                "OK Loop with abort completed with {} results:",
+                results.len()
+            );
             for (i, result) in results.iter().enumerate() {
                 println!("  Result {}: {}", i, result);
             }
         }
         Err(e) => println!("ERR Expected abort error: {}", e),
     }
-    
+
     println!("\n=== Example 4: Condition-based loop ===");
     dry.clear_control_flags();
     dry.insert("should_continue", true);
@@ -202,12 +213,12 @@ async fn main() -> OpResult<()> {
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n SUMMARY:");
     println!("• continue_loop!: Skips rest of current iteration, moves to next");
     println!("• break_loop!: Exits the entire loop immediately");
     println!("• abort!: Stops everything and returns an error");
     println!("• condition variable: Controls whether loop continues");
-    
+
     Ok(())
 }

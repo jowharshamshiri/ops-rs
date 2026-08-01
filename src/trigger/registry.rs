@@ -25,18 +25,18 @@ impl TriggerRegistry {
     {
         let temp_trigger = (factory)();
         let trigger_name = temp_trigger.name();
-		if self.factories.contains_key(&trigger_name) {
-			return Err(OpError::Trigger(format!("Trigger type {} is already registered", trigger_name)));
-		}
+        if self.factories.contains_key(&trigger_name) {
+            return Err(OpError::Trigger(format!(
+                "Trigger type {} is already registered",
+                trigger_name
+            )));
+        }
         self.factories.insert(trigger_name, Box::new(factory));
         Ok(())
     }
 
     /// Create a Trigger instance for a trigger type
-    pub fn spawn(
-        &self,
-        trigger_name: &str,
-    ) -> std::result::Result<Box<dyn Trigger>, String> {
+    pub fn spawn(&self, trigger_name: &str) -> std::result::Result<Box<dyn Trigger>, String> {
         match self.factories.get(trigger_name) {
             Some(factory) => Ok(factory()),
             None => Err(format!(
@@ -47,19 +47,19 @@ impl TriggerRegistry {
         }
     }
 
-	/// Create all registered triggers
-	pub fn spawn_all(&self) -> Vec<Box<dyn Trigger>> {
-		self.factories.values().map(|factory| (factory)()).collect()
-	}
+    /// Create all registered triggers
+    pub fn spawn_all(&self) -> Vec<Box<dyn Trigger>> {
+        self.factories.values().map(|factory| (factory)()).collect()
+    }
 
     /// Get all set triggers
     pub fn list_names(&self) -> Vec<String> {
         self.factories.keys().cloned().collect()
     }
 
-	pub fn list(&self) -> Vec<String> {
-		self.list_names()
-	}
+    pub fn list(&self) -> Vec<String> {
+        self.list_names()
+    }
 
     /// Check if a trigger is set
     pub fn is_set(&self, trigger_name: &str) -> bool {

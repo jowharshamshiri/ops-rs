@@ -21,7 +21,7 @@ impl Op<String> for ProcessOp {
         println!("ProcessOp: {}", result);
         Ok(result)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&self.name).build()
     }
@@ -39,7 +39,7 @@ impl Op<bool> for CheckOp {
         println!("CheckOp: should_continue = {}", should_continue);
         Ok(should_continue)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("CheckOp").build()
     }
@@ -99,7 +99,7 @@ repeat! {
 // Repeat that returns only the last result
 repeat! {
     ProcessingLoopLast<String> -> last = {
-        counter: "iteration", 
+        counter: "iteration",
         limit: "max_iterations",
         ops: [
             ProcessOp::new("loop_step")
@@ -111,7 +111,7 @@ repeat! {
 repeat! {
     ProcessingLoopUnit<String> -> unit = {
         counter: "iteration",
-        limit: "max_iterations", 
+        limit: "max_iterations",
         ops: [
             ProcessOp::new("loop_step")
         ]
@@ -178,69 +178,69 @@ batch! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     // Set up context
     dry.insert("max_iterations", 3_usize);
     dry.insert("should_continue", true);
-    
+
     println!("=== Batch Operations ===");
-    
+
     // Test batch operations
     let pipeline = ProcessingPipeline::new();
     let results = pipeline.perform(&mut dry, &mut wet).await?;
     println!("Batch all results: {:?}", results);
-    
-    let pipeline_last = ProcessingPipelineLast::new(); 
+
+    let pipeline_last = ProcessingPipelineLast::new();
     let result = pipeline_last.perform(&mut dry, &mut wet).await?;
     println!("Batch last result: {:?}", result);
-    
+
     let pipeline_first = ProcessingPipelineFirst::new();
     let result = pipeline_first.perform(&mut dry, &mut wet).await?;
     println!("Batch first result: {:?}", result);
-    
+
     let pipeline_unit = ProcessingPipelineUnit::new();
     let result = pipeline_unit.perform(&mut dry, &mut wet).await?;
     println!("Batch unit result: {:?}", result);
-    
+
     println!("\n=== Repeat Operations ===");
-    
+
     // Test repeat operations
     let loop_op = ProcessingLoop::new();
     let results = loop_op.perform(&mut dry, &mut wet).await?;
     println!("Repeat all results: {:?}", results);
-    
+
     let loop_last = ProcessingLoopLast::new();
     let result = loop_last.perform(&mut dry, &mut wet).await?;
     println!("Repeat last result: {:?}", result);
-    
+
     let loop_unit = ProcessingLoopUnit::new();
     let result = loop_unit.perform(&mut dry, &mut wet).await?;
     println!("Repeat unit result: {:?}", result);
-    
+
     println!("\n=== While Loop Operations ===");
-    
+
     // Test while loop operations
     dry.insert("should_continue", true);
     let while_op = ProcessUntilDone::new();
     let results = while_op.perform(&mut dry, &mut wet).await?;
     println!("While loop all results: {:?}", results);
-    
+
     dry.insert("should_continue", true);
-    let while_last = ProcessUntilDoneLast::new(); 
+    let while_last = ProcessUntilDoneLast::new();
     let result = while_last.perform(&mut dry, &mut wet).await?;
     println!("While loop last result: {:?}", result);
-    
+
     dry.insert("should_continue", true);
     let condition_checker = ConditionChecker::new();
     let results = condition_checker.perform(&mut dry, &mut wet).await?;
     println!("Condition checker results: {:?}", results);
-    
+
     println!("\n=== Composable Operations ===");
-    
+
     // Test composable pipeline
     let composable = ComposablePipeline::new();
     let result = composable.perform(&mut dry, &mut wet).await?;
     println!("Composable pipeline result: {:?}", result);
-    
+
     Ok(())
 }

@@ -11,7 +11,7 @@ impl Op<()> for StartTransactionOp {
         println!("Transaction started");
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("StartTransactionOp").build()
     }
@@ -35,7 +35,7 @@ impl Op<()> for LoadContentOp {
         println!("Loading content for iteration {}", iteration);
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("LoadContentOp").build()
     }
@@ -48,7 +48,9 @@ struct InsertDataOp {
 
 impl InsertDataOp {
     fn with(config: impl Into<String>) -> Self {
-        Self { config: config.into() }
+        Self {
+            config: config.into(),
+        }
     }
 }
 
@@ -58,7 +60,7 @@ impl Op<()> for InsertDataOp {
         println!("Inserting data with config: {}", self.config);
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("InsertDataOp").build()
     }
@@ -73,7 +75,7 @@ impl Op<()> for MakeDecisionOp {
         println!("Making Make Decision");
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("MakeDecisionOp").build()
     }
@@ -88,7 +90,7 @@ impl Op<()> for ReactToContentSelectionResponse {
         println!("Reacting to content selection response");
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("ReactToContentSelectionResponse").build()
     }
@@ -105,7 +107,7 @@ batch! {
     ]
 }
 
-// SOLUTION 2: Using repeat macro with unit aggregation  
+// SOLUTION 2: Using repeat macro with unit aggregation
 // This keeps the looping behavior but returns ()
 repeat! {
     ContentSelectionLoopOp<()> -> unit = {
@@ -142,7 +144,7 @@ batch! {
     CloseReadOpBatch<()> -> unit = [
         StartTransactionOp,
         ContentSelectionOp::new(),           // OK Now implements Op<()>
-        ContentSelectionLoopOp::new(),       // OK Also implements Op<()>  
+        ContentSelectionLoopOp::new(),       // OK Also implements Op<()>
         ContentSelectionWhileOp::new()       // OK Also implements Op<()>
     ]
 }
@@ -166,7 +168,7 @@ batch! {
 repeat! {
     ContentSelectionLastResult<()> -> last = {
         counter: "cso",
-        limit: "cso_limit", 
+        limit: "cso_limit",
         ops: [
             LoadContentOp::new("cso".to_string()),
             MakeDecisionOp
@@ -194,36 +196,36 @@ batch! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     // Set up context variables
     dry.insert("cso_limit", 3_usize);
     dry.insert("has_more_content", true);
-    
+
     println!("=== Content Selection with Sequential Execution ===");
     let content_op = ContentSelectionOp::new();
     let result = content_op.perform(&mut dry, &mut wet).await?;
     println!("Sequential content selection result: {:?}", result);
-    
+
     println!("\n=== Content Selection with Loop ===");
     let loop_op = ContentSelectionLoopOp::new();
     let result = loop_op.perform(&mut dry, &mut wet).await?;
     println!("Loop content selection result: {:?}", result);
-    
+
     println!("\n=== Content Selection with While Loop ===");
     dry.insert("has_more_content", true);
     let while_op = ContentSelectionWhileOp::new();
     let result = while_op.perform(&mut dry, &mut wet).await?;
     println!("While loop content selection result: {:?}", result);
-    
+
     println!("\n=== Full Extraction Pipeline ===");
     let extraction_pipeline = CloseReadOpBatch::new();
     let result = extraction_pipeline.perform(&mut dry, &mut wet).await?;
     println!("Full extraction pipeline result: {:?}", result);
-    
+
     println!("\n=== Fully Composable Pipeline ===");
     let composable_pipeline = FullyComposablePipeline::new();
     let result = composable_pipeline.perform(&mut dry, &mut wet).await?;
     println!("Fully composable pipeline result: {:?}", result);
-    
+
     Ok(())
 }

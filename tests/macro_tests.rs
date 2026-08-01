@@ -1,19 +1,18 @@
+use async_trait::async_trait;
 use ops::{
-    DryContext, WetContext, Op, OpMetadata, OpError,
-    dry_put, dry_get, dry_require, dry_result,
-    wet_put_ref, wet_put_arc, wet_require_ref,
+    dry_get, dry_put, dry_require, dry_result, wet_put_arc, wet_put_ref, wet_require_ref,
+    DryContext, Op, OpError, OpMetadata, WetContext,
 };
 use std::sync::Arc;
-use async_trait::async_trait;
 
 // TEST0077: Use dry_put! and dry_get! macros to store and retrieve a typed value by variable name
 #[test]
 fn test0077_dry_put_and_get() {
     let mut dry = DryContext::new();
-    
+
     let value = 42;
     dry_put!(dry, value);
-    
+
     let retrieved: Option<i32> = dry_get!(dry, value);
     assert_eq!(retrieved, Some(42));
 }
@@ -22,14 +21,14 @@ fn test0077_dry_put_and_get() {
 #[test]
 fn test0078_dry_require() {
     let mut dry = DryContext::new();
-    
+
     let name = "test".to_string();
     dry_put!(dry, name);
-    
+
     let result: Result<String, OpError> = dry_require!(dry, name);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "test");
-    
+
     // Test missing value
     let missing: Result<i32, OpError> = dry_require!(dry, missing_value);
     assert!(missing.is_err());
@@ -39,14 +38,14 @@ fn test0078_dry_require() {
 #[test]
 fn test0079_dry_result() {
     let mut dry = DryContext::new();
-    
+
     let final_value = "completed".to_string();
     dry_result!(dry, "TestOp", final_value);
-    
+
     // Should be stored under both "result" and "TestOp"
     let result_key: Option<String> = dry.get("result");
     let op_key: Option<String> = dry.get("TestOp");
-    
+
     assert_eq!(result_key, Some("completed".to_string()));
     assert_eq!(op_key, Some("completed".to_string()));
 }
@@ -59,10 +58,10 @@ struct TestService {
 #[test]
 fn test0080_wet_put_ref_and_require_ref() {
     let mut wet = WetContext::new();
-    
+
     let service = TestService { value: 100 };
     wet_put_ref!(wet, service);
-    
+
     let retrieved: Result<Arc<TestService>, OpError> = wet_require_ref!(wet, service);
     assert!(retrieved.is_ok());
     assert_eq!(retrieved.unwrap().value, 100);
@@ -72,10 +71,10 @@ fn test0080_wet_put_ref_and_require_ref() {
 #[test]
 fn test0081_wet_put_arc() {
     let mut wet = WetContext::new();
-    
+
     let shared_service = Arc::new(TestService { value: 200 });
     wet_put_arc!(wet, shared_service);
-    
+
     let retrieved: Result<Arc<TestService>, OpError> = wet_require_ref!(wet, shared_service);
     assert!(retrieved.is_ok());
     assert_eq!(retrieved.unwrap().value, 200);
@@ -90,13 +89,13 @@ impl Op<String> for MacroTestOp {
         // Use dry_require for dry context
         let input: String = dry_require!(dry, input)?;
         let count: i32 = dry_require!(dry, count)?;
-        
-        // Use wet_require_ref for wet context  
+
+        // Use wet_require_ref for wet context
         let service: Arc<TestService> = wet_require_ref!(wet, service)?;
-        
+
         Ok(format!("{} x {} = {}", input, count, service.value))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("MacroTestOp")
             .description("Tests macro usage in ops")
@@ -113,15 +112,15 @@ async fn test0082_macros_in_op() {
     let count = 3;
     dry_put!(dry, input);
     dry_put!(dry, count);
-    
+
     let mut wet = WetContext::new();
     let service = TestService { value: 42 };
     wet_put_ref!(wet, service);
-    
+
     // Execute op
     let op = MacroTestOp;
     let result = op.perform(&mut dry, &mut wet).await;
-    
+
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "test x 3 = 42");
 }

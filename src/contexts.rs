@@ -52,27 +52,28 @@ impl DryContext {
 
     pub fn get_required<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<T, OpError> {
         match self.values.get(key) {
-            None => Err(OpError::Context(format!("Required dry context key '{}' not found", key))),
-            Some(value) => {
-                match serde_json::from_value::<T>(value.clone()) {
-                    Ok(parsed) => Ok(parsed),
-                    Err(_) => {
-                        let actual_type = match value {
-                            serde_json::Value::Null => "null",
-                            serde_json::Value::Bool(_) => "boolean",
-                            serde_json::Value::Number(_) => "number",
-                            serde_json::Value::String(_) => "string",
-                            serde_json::Value::Array(_) => "array",
-                            serde_json::Value::Object(_) => "object",
-                        };
-                        let expected_type = std::any::type_name::<T>();
-                        Err(OpError::Context(format!(
+            None => Err(OpError::Context(format!(
+                "Required dry context key '{}' not found",
+                key
+            ))),
+            Some(value) => match serde_json::from_value::<T>(value.clone()) {
+                Ok(parsed) => Ok(parsed),
+                Err(_) => {
+                    let actual_type = match value {
+                        serde_json::Value::Null => "null",
+                        serde_json::Value::Bool(_) => "boolean",
+                        serde_json::Value::Number(_) => "number",
+                        serde_json::Value::String(_) => "string",
+                        serde_json::Value::Array(_) => "array",
+                        serde_json::Value::Object(_) => "object",
+                    };
+                    let expected_type = std::any::type_name::<T>();
+                    Err(OpError::Context(format!(
                             "Type mismatch for dry context key '{}': expected type '{}', but found '{}' value: {}",
                             key, expected_type, actual_type, value
                         )))
-                    }
                 }
-            }
+            },
         }
     }
 
@@ -120,17 +121,28 @@ impl DryContext {
 
     /// Get a value or compute it using a closure that has access to the context
     /// The closure receives mutable access to the context and the key, and must insert the value itself
-    pub async fn ensure<T, F>(&mut self, key: &str, wet: &mut WetContext, factory: F) -> Result<T, OpError>
+    pub async fn ensure<T, F>(
+        &mut self,
+        key: &str,
+        wet: &mut WetContext,
+        factory: F,
+    ) -> Result<T, OpError>
     where
         T: Serialize + for<'de> Deserialize<'de>,
-        F: for<'a> FnOnce(&'a mut Self, &'a mut WetContext, &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, OpError>> + Send + 'a>>,
+        F: for<'a> FnOnce(
+            &'a mut Self,
+            &'a mut WetContext,
+            &'a str,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<T, OpError>> + Send + 'a>,
+        >,
     {
         if let Some(value) = self.get::<T>(key) {
             Ok(value)
         } else {
             let new_value = factory(self, wet, key).await?;
-			self.insert(key, &new_value);
-            
+            self.insert(key, &new_value);
+
             Ok(new_value)
         }
     }
@@ -143,23 +155,23 @@ impl DryContext {
             self.control_flags.abort_reason = other.control_flags.abort_reason;
         }
     }
-    
+
     /// Set abort flag with optional reason
     pub fn set_abort(&mut self, reason: Option<String>) {
         self.control_flags.aborted = true;
         self.control_flags.abort_reason = reason;
     }
-    
+
     /// Check if abort flag is set
     pub fn is_aborted(&self) -> bool {
         self.control_flags.aborted
     }
-    
+
     /// Get abort reason if set
     pub fn abort_reason(&self) -> Option<&String> {
         self.control_flags.abort_reason.as_ref()
     }
-    
+
     /// Clear all control flags
     pub fn clear_control_flags(&mut self) {
         self.control_flags = ControlFlags::default();
@@ -204,19 +216,20 @@ impl WetContext {
 
     pub fn get_required<T: Any + Send + Sync>(&self, key: &str) -> Result<Arc<T>, OpError> {
         match self.references.get(key) {
-            None => Err(OpError::Context(format!("Required wet context reference '{}' not found", key))),
-            Some(any_ref) => {
-                match any_ref.clone().downcast::<T>() {
-                    Ok(typed_ref) => Ok(typed_ref),
-                    Err(_) => {
-                        let expected_type = std::any::type_name::<T>();
-                        Err(OpError::Context(format!(
+            None => Err(OpError::Context(format!(
+                "Required wet context reference '{}' not found",
+                key
+            ))),
+            Some(any_ref) => match any_ref.clone().downcast::<T>() {
+                Ok(typed_ref) => Ok(typed_ref),
+                Err(_) => {
+                    let expected_type = std::any::type_name::<T>();
+                    Err(OpError::Context(format!(
                             "Type mismatch for wet context reference '{}': expected type '{}', but found a different type",
                             key, expected_type
                         )))
-                    }
                 }
-            }
+            },
         }
     }
 
@@ -229,10 +242,21 @@ impl WetContext {
     }
 
     /// Get a reference or compute it using an async closure that has access to both contexts
-    pub async fn ensure<T, F>(&mut self, key: &str, dry: &mut DryContext, factory: F) -> Result<Arc<T>, OpError>
+    pub async fn ensure<T, F>(
+        &mut self,
+        key: &str,
+        dry: &mut DryContext,
+        factory: F,
+    ) -> Result<Arc<T>, OpError>
     where
         T: Any + Send + Sync,
-        F: for<'a> FnOnce(&'a mut DryContext, &'a mut Self, &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Arc<T>, OpError>> + Send + 'a>>,
+        F: for<'a> FnOnce(
+            &'a mut DryContext,
+            &'a mut Self,
+            &'a str,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Arc<T>, OpError>> + Send + 'a>,
+        >,
     {
         if let Some(value) = self.get_ref::<T>(key) {
             Ok(value)
@@ -334,7 +358,7 @@ mod tests {
         let ctx = DryContext::new()
             .with_value("count", "not_a_number")
             .with_value("flag", 123);
-        
+
         // String value, expecting i32
         let result = ctx.get_required::<i32>("count");
         assert!(result.is_err());
@@ -342,7 +366,7 @@ mod tests {
         assert!(err.contains("Type mismatch"));
         assert!(err.contains("expected type 'i32'"));
         assert!(err.contains("found 'string' value"));
-        
+
         // Number value, expecting bool
         let result = ctx.get_required::<bool>("flag");
         assert!(result.is_err());
@@ -350,7 +374,7 @@ mod tests {
         assert!(err.contains("Type mismatch"));
         assert!(err.contains("expected type 'bool'"));
         assert!(err.contains("found 'number' value"));
-        
+
         // Missing key still gives "not found"
         let result = ctx.get_required::<i32>("missing");
         assert!(result.is_err());
@@ -370,10 +394,15 @@ mod tests {
         struct ServiceB {
             _id: i32,
         }
-        
+
         let mut ctx = WetContext::new();
-        ctx.insert_ref("service", ServiceA { _name: "test".to_string() });
-        
+        ctx.insert_ref(
+            "service",
+            ServiceA {
+                _name: "test".to_string(),
+            },
+        );
+
         // Wrong type
         let result = ctx.get_required::<ServiceB>("service");
         assert!(result.is_err());
@@ -381,7 +410,7 @@ mod tests {
         assert!(err.contains("Type mismatch"));
         assert!(err.contains("expected type"));
         assert!(err.contains("ServiceB"));
-        
+
         // Missing key
         let result = ctx.get_required::<ServiceA>("missing");
         assert!(result.is_err());
@@ -394,19 +423,19 @@ mod tests {
     #[test]
     fn test0017_control_flags() {
         let mut ctx = DryContext::new();
-        
+
         // Test abort functionality
         assert!(!ctx.is_aborted());
         assert_eq!(ctx.abort_reason(), None);
-        
+
         ctx.set_abort(Some("Test abort reason".to_string()));
         assert!(ctx.is_aborted());
         assert_eq!(ctx.abort_reason(), Some(&"Test abort reason".to_string()));
-        
+
         // Test clearing all flags
         ctx.set_abort(Some("Another reason".to_string()));
         assert!(ctx.is_aborted());
-        
+
         ctx.clear_control_flags();
         assert!(!ctx.is_aborted());
         assert_eq!(ctx.abort_reason(), None);
@@ -417,23 +446,23 @@ mod tests {
     fn test0018_control_flags_merge() {
         let mut ctx1 = DryContext::new();
         let mut ctx2 = DryContext::new();
-        
+
         // Set flags in ctx2
         ctx2.set_abort(Some("Merged abort".to_string()));
-        
+
         // Merge ctx2 into ctx1
         ctx1.merge(ctx2);
-        
+
         assert!(ctx1.is_aborted());
         assert_eq!(ctx1.abort_reason(), Some(&"Merged abort".to_string()));
-        
+
         // Test that merge doesn't override existing abort
         let mut ctx3 = DryContext::new();
         ctx3.set_abort(Some("Original abort".to_string()));
-        
+
         let mut ctx4 = DryContext::new();
         ctx4.set_abort(Some("New abort".to_string()));
-        
+
         ctx3.merge(ctx4);
         // Should keep the original abort reason since ctx3 was already aborted
         assert_eq!(ctx3.abort_reason(), Some(&"Original abort".to_string()));
@@ -443,41 +472,47 @@ mod tests {
     #[test]
     fn test0019_get_or_insert_with() {
         let mut ctx = DryContext::new();
-        
+
         // Test inserting a new value when key doesn't exist
         let value = ctx.get_or_insert_with("count", || 42).unwrap();
         assert_eq!(value, 42);
         assert_eq!(ctx.get::<i32>("count").unwrap(), 42);
-        
+
         // Test getting existing value without calling factory
         let mut factory_called = false;
-        let value = ctx.get_or_insert_with("count", || {
-            factory_called = true;
-            100
-        }).unwrap();
+        let value = ctx
+            .get_or_insert_with("count", || {
+                factory_called = true;
+                100
+            })
+            .unwrap();
         assert_eq!(value, 42); // Should return existing value
         assert!(!factory_called); // Factory should not be called
-        
+
         // Test with different types
-        let name = ctx.get_or_insert_with("name", || "default_name".to_string()).unwrap();
+        let name = ctx
+            .get_or_insert_with("name", || "default_name".to_string())
+            .unwrap();
         assert_eq!(name, "default_name");
         assert_eq!(ctx.get::<String>("name").unwrap(), "default_name");
-        
+
         // Test with complex types
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
         struct Config {
             host: String,
             port: u16,
         }
-        
-        let config = ctx.get_or_insert_with("config", || Config {
-            host: "localhost".to_string(),
-            port: 8080,
-        }).unwrap();
-        
+
+        let config = ctx
+            .get_or_insert_with("config", || Config {
+                host: "localhost".to_string(),
+                port: 8080,
+            })
+            .unwrap();
+
         assert_eq!(config.host, "localhost");
         assert_eq!(config.port, 8080);
-        
+
         // Verify it's stored in context
         let stored_config = ctx.get::<Config>("config").unwrap();
         assert_eq!(stored_config, config);
@@ -486,8 +521,12 @@ mod tests {
     // TEST0098: Merge two DryContexts where keys overlap and verify the merging context's values win
     #[test]
     fn test0098_dry_context_merge_overwrites_keys() {
-        let mut ctx1 = DryContext::new().with_value("shared", 1i32).with_value("only_in_1", 10i32);
-        let ctx2 = DryContext::new().with_value("shared", 2i32).with_value("only_in_2", 20i32);
+        let mut ctx1 = DryContext::new()
+            .with_value("shared", 1i32)
+            .with_value("only_in_1", 10i32);
+        let ctx2 = DryContext::new()
+            .with_value("shared", 2i32)
+            .with_value("only_in_2", 20i32);
         ctx1.merge(ctx2);
         // After merge, ctx2's value wins for overlapping keys
         assert_eq!(ctx1.get::<i32>("shared").unwrap(), 2);
@@ -566,46 +605,61 @@ mod tests {
     #[test]
     fn test0020_get_or_compute_with() {
         let mut ctx = DryContext::new();
-        
+
         // Seed some initial data
         ctx.insert("base_port", 8000);
         ctx.insert("app_name", "test_app".to_string());
-        
+
         // Test computing a value that depends on existing context data
-        let computed_url = ctx.get_or_compute_with("service_url", |ctx, key| {
-            let base_port: i32 = ctx.get("base_port").unwrap_or(3000);
-            let app_name: String = ctx.get("app_name").unwrap_or_else(|| "default".to_string());
-            let url = format!("http://{}:{}", app_name, base_port + 80);
-            
-            // The closure can insert additional related data
-            ctx.insert("computed_port", base_port + 80);
-            ctx.insert(format!("{}_timestamp", key), "2023-01-01T00:00:00Z");
-            
-            url
-        }).unwrap();
-        
+        let computed_url = ctx
+            .get_or_compute_with("service_url", |ctx, key| {
+                let base_port: i32 = ctx.get("base_port").unwrap_or(3000);
+                let app_name: String = ctx.get("app_name").unwrap_or_else(|| "default".to_string());
+                let url = format!("http://{}:{}", app_name, base_port + 80);
+
+                // The closure can insert additional related data
+                ctx.insert("computed_port", base_port + 80);
+                ctx.insert(format!("{}_timestamp", key), "2023-01-01T00:00:00Z");
+
+                url
+            })
+            .unwrap();
+
         assert_eq!(computed_url, "http://test_app:8080");
-        assert_eq!(ctx.get::<String>("service_url").unwrap(), "http://test_app:8080");
+        assert_eq!(
+            ctx.get::<String>("service_url").unwrap(),
+            "http://test_app:8080"
+        );
         assert_eq!(ctx.get::<i32>("computed_port").unwrap(), 8080);
-        assert_eq!(ctx.get::<String>("service_url_timestamp").unwrap(), "2023-01-01T00:00:00Z");
-        
+        assert_eq!(
+            ctx.get::<String>("service_url_timestamp").unwrap(),
+            "2023-01-01T00:00:00Z"
+        );
+
         // Test getting existing value without calling computer
         let mut computer_called = false;
-        let existing_url = ctx.get_or_compute_with("service_url", |_ctx, _key| {
-            computer_called = true;
-            "should_not_be_called".to_string()
-        }).unwrap();
-        
+        let existing_url = ctx
+            .get_or_compute_with("service_url", |_ctx, _key| {
+                computer_called = true;
+                "should_not_be_called".to_string()
+            })
+            .unwrap();
+
         assert_eq!(existing_url, "http://test_app:8080");
         assert!(!computer_called);
-        
+
         // Test computer that doesn't insert the value (fallback insertion)
-        let fallback_value = ctx.get_or_compute_with("fallback_test", |_ctx, _key| {
-            // Computer doesn't insert the value itself
-            "fallback_computed".to_string()
-        }).unwrap();
-        
+        let fallback_value = ctx
+            .get_or_compute_with("fallback_test", |_ctx, _key| {
+                // Computer doesn't insert the value itself
+                "fallback_computed".to_string()
+            })
+            .unwrap();
+
         assert_eq!(fallback_value, "fallback_computed");
-        assert_eq!(ctx.get::<String>("fallback_test").unwrap(), "fallback_computed");
+        assert_eq!(
+            ctx.get::<String>("fallback_test").unwrap(),
+            "fallback_computed"
+        );
     }
 }

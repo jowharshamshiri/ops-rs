@@ -1,5 +1,5 @@
 use ops::prelude::*;
-use ops::{dry_put, dry_require, wet_put_ref, wet_require_ref, perform};
+use ops::{dry_put, dry_require, perform, wet_put_ref, wet_require_ref};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ impl DatabaseService {
             connection_info: "Database connection established".to_string(),
         }
     }
-    
+
     fn save(&self, data: i32) -> String {
         format!("Saved {} to {}", data, self.connection_info)
     }
@@ -30,7 +30,7 @@ impl ConfigService {
             config_value: 42, // Magic config value
         }
     }
-    
+
     fn get_config(&self) -> i32 {
         self.config_value
     }
@@ -55,7 +55,7 @@ impl Op<i32> for DoubleNumberOp {
         let x: i32 = dry_require!(dry, x)?;
         Ok(x * 2)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("DoubleNumberOp")
             .description("Doubles a number")
@@ -73,7 +73,7 @@ impl Op<i32> for AddConfigOp {
         let config = config_service.get_config();
         Ok(x + config)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("AddConfigOp")
             .description("Adds config value to a number")
@@ -90,7 +90,7 @@ impl Op<String> for SaveToDatabaseOp {
         let database: Arc<DatabaseService> = wet_require_ref!(wet, database)?;
         Ok(database.save(data))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("SaveToDatabaseOp")
             .description("Saves data to database")
@@ -108,7 +108,7 @@ impl Op<i32> for IncrementCounterOp {
         let counter = counter_service.get_counter();
         Ok(base + counter as i32)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("IncrementCounterOp")
             .description("Adds counter value to base number")
@@ -126,7 +126,7 @@ async fn main() -> OpResult<()> {
     let database = DatabaseService::new();
     let config_service = ConfigService::new();
     let counter_service = CounterService;
-    
+
     wet_put_ref!(wet, database);
     wet_put_ref!(wet, config_service);
     wet_put_ref!(wet, counter_service);
@@ -136,24 +136,24 @@ async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let x = 10;
     dry_put!(dry, x);
-    
+
     // Chain operations manually to show data flow
     let double_op = DoubleNumberOp;
     let doubled = double_op.perform(&mut dry, &mut wet).await?;
     println!("After doubling {}: {}", x, doubled);
-    
+
     // Update dry context with result for next op
     let x = doubled;
     dry_put!(dry, x);
-    
+
     let add_config_op = AddConfigOp;
     let with_config = add_config_op.perform(&mut dry, &mut wet).await?;
     println!("After adding config: {}", with_config);
-    
+
     // Save to database
     let data = with_config;
     dry_put!(dry, data);
-    
+
     let save_op = SaveToDatabaseOp;
     let save_result = save_op.perform(&mut dry, &mut wet).await?;
     println!("Save result: {}\n", save_result);
@@ -163,7 +163,7 @@ async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let x = 5;
     dry_put!(dry, x);
-    
+
     let result = DoubleNumberOp.perform(&mut dry, &mut wet).await?;
     println!("Doubled result: {}\n", result);
 
@@ -172,11 +172,11 @@ async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let base = 100;
     dry_put!(dry, base);
-    
+
     // Counter service will increment each time it's called
     let result = IncrementCounterOp.perform(&mut dry, &mut wet).await?;
     println!("Base + counter: {}", result);
-    
+
     // Call again to show counter increment
     let result2 = IncrementCounterOp.perform(&mut dry, &mut wet).await?;
     println!("Base + counter (incremented): {}\n", result2);
@@ -186,7 +186,7 @@ async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let x = 7;
     dry_put!(dry, x);
-    
+
     let result = perform(Box::new(DoubleNumberOp), &mut dry, &mut wet).await?;
     println!("Logged result: {}\n", result);
 
@@ -196,11 +196,11 @@ async fn main() -> OpResult<()> {
         let mut dry = DryContext::new();
         let base = i * 10;
         dry_put!(dry, base);
-        
+
         let result = IncrementCounterOp.perform(&mut dry, &mut wet).await?;
         println!("Iteration {}: {} + counter = {}", i, base, result);
     }
-    
+
     // Example 6: Show all op metadata
     println!("\n6. Op Metadata:");
     let ops: Vec<Box<dyn Op<i32>>> = vec![
@@ -208,10 +208,14 @@ async fn main() -> OpResult<()> {
         Box::new(AddConfigOp),
         Box::new(IncrementCounterOp),
     ];
-    
+
     for op in ops {
         let metadata = op.metadata();
-        println!("- {}: {}", metadata.name, metadata.description.unwrap_or("No description".to_string()));
+        println!(
+            "- {}: {}",
+            metadata.name,
+            metadata.description.unwrap_or("No description".to_string())
+        );
     }
 
     Ok(())

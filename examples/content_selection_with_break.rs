@@ -1,5 +1,5 @@
 use ops::prelude::*;
-use ops::{repeat_until, break_loop};
+use ops::{break_loop, repeat_until};
 
 // Your ContentSelectionOp with intelligent break/continue logic
 
@@ -19,13 +19,13 @@ impl Op<()> for LoadContentOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
         let iteration = dry.get::<usize>(&self.prefix).unwrap_or(0);
         println!(" Loading content for iteration {}", iteration);
-        
+
         // Simulate content loading
         dry.insert("content_length", iteration * 1000);
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("LoadContentOp").build()
     }
@@ -38,7 +38,9 @@ struct InsertDataOp {
 
 impl InsertDataOp {
     fn with(config: impl Into<String>) -> Self {
-        Self { config: config.into() }
+        Self {
+            config: config.into(),
+        }
     }
 }
 
@@ -46,7 +48,7 @@ impl InsertDataOp {
 impl Op<()> for InsertDataOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
         println!(" Inserting data with config: {}", self.config);
-        
+
         // Simulate AI analysis result
         let iteration = dry.get::<usize>("cso").unwrap_or(0);
         let content_quality = match iteration {
@@ -54,13 +56,13 @@ impl Op<()> for InsertDataOp {
             2 => "adequate",         // 3rd iteration is okay
             _ => "excellent",        // 4th+ iterations are great
         };
-        
+
         dry.insert("content_quality", content_quality.to_string());
         println!("    AI Analysis: Content quality is {}", content_quality);
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("InsertDataOp").build()
     }
@@ -72,14 +74,15 @@ struct MakeDecisionOp;
 #[async_trait]
 impl Op<()> for MakeDecisionOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
-        let content_quality = dry.get::<String>("content_quality")
+        let content_quality = dry
+            .get::<String>("content_quality")
             .unwrap_or_else(|| "unknown".to_string());
-        
+
         println!(" MakeDecision processing quality: {}", content_quality);
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("MakeDecisionOp").build()
     }
@@ -91,12 +94,13 @@ struct ReactToContentSelectionResponse;
 #[async_trait]
 impl Op<()> for ReactToContentSelectionResponse {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
-        let content_quality = dry.get::<String>("content_quality")
+        let content_quality = dry
+            .get::<String>("content_quality")
             .unwrap_or_else(|| "unknown".to_string());
         let iteration = dry.get::<usize>("cso").unwrap_or(0);
-        
+
         println!(" Reacting to content selection: {}", content_quality);
-        
+
         match content_quality.as_str() {
             "insufficient" => {
                 if iteration >= 4 {
@@ -122,10 +126,10 @@ impl Op<()> for ReactToContentSelectionResponse {
                 dry.insert("should_continue", true);
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("ReactToContentSelectionResponse").build()
     }
@@ -156,7 +160,7 @@ impl Op<()> for StartTransactionOp {
         println!(" Starting transaction");
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("StartTransactionOp").build()
     }
@@ -178,13 +182,13 @@ repeat_until! {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     println!(" CONTENT SELECTION WITH INTELLIGENT BREAK/CONTINUE \n");
-    
+
     // Test 1: Content selection that finds adequate content
     println!("=== Test 1: Finding adequate content ===");
     dry.insert("should_continue", true);
-    
+
     let content_op = ContentSelectionOp::new();
     match content_op.perform(&mut dry, &mut wet).await {
         Ok(_) => {
@@ -193,12 +197,12 @@ async fn main() -> OpResult<()> {
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n=== Test 2: Full extraction pipeline ===");
     dry.clear_control_flags();
     dry.insert("should_continue", true);
     dry.insert("extraction_active", true);
-    
+
     let extraction_pipeline = CloseReadOpBatch::new();
     match extraction_pipeline.perform(&mut dry, &mut wet).await {
         Ok(_) => {
@@ -207,7 +211,7 @@ async fn main() -> OpResult<()> {
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n SUMMARY:");
     println!("• Your ContentSelectionOp now intelligently uses break_loop! to stop when:");
     println!("  - Content quality is 'adequate' or 'excellent'");
@@ -215,6 +219,6 @@ async fn main() -> OpResult<()> {
     println!("• continue_loop! could be used to skip iterations if needed");
     println!("• The condition variable 'should_continue' controls the loop");
     println!("• max_iterations provides a safety limit");
-    
+
     Ok(())
 }

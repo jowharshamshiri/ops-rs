@@ -3,22 +3,26 @@ use crate::prelude::*;
 // Implements Java OPS class functionality with Rust enhancements
 
 use crate::op::Op;
-use crate::{DryContext, WetContext, OpError};
 use crate::wrappers::logging::LoggingWrapper;
+use crate::{DryContext, OpError, WetContext};
 use std::panic::Location;
 
 /// Central execution function with automatic logging wrapper
 /// Equivalent to Java OPS.perform() method
-pub async fn perform<T>(op: Box<dyn Op<T>>, dry: &mut DryContext, wet: &mut WetContext) -> OpResult<T>
+pub async fn perform<T>(
+    op: Box<dyn Op<T>>,
+    dry: &mut DryContext,
+    wet: &mut WetContext,
+) -> OpResult<T>
 where
     T: Send + 'static,
 {
     // Get caller information for dynamic op naming
     let trigger_name = get_caller_trigger_name();
-    
+
     // Wrap op with logging (matches Java behavior)
     let logged_op = LoggingWrapper::new(op, trigger_name);
-    
+
     // Execute with logging
     logged_op.perform(dry, wet).await
 }
@@ -28,8 +32,14 @@ where
 #[track_caller]
 pub fn get_caller_trigger_name() -> String {
     let location = Location::caller();
-    format!("{}::{}", 
-        location.file().split('/').last().unwrap_or("unknown").replace(".rs", ""),
+    format!(
+        "{}::{}",
+        location
+            .file()
+            .split('/')
+            .last()
+            .unwrap_or("unknown")
+            .replace(".rs", ""),
         location.line()
     )
 }
@@ -40,46 +50,54 @@ pub fn wrap_nested_op_exception(trigger_name: &str, error: OpError) -> OpError {
     match error {
         OpError::ExecutionFailed(msg) => {
             OpError::ExecutionFailed(format!("Op '{}' failed: {}", trigger_name, msg))
-        },
-        OpError::Timeout { timeout_ms } => {
-            OpError::ExecutionFailed(format!("Op '{}' timed out after {}ms", trigger_name, timeout_ms))
-        },
+        }
+        OpError::Timeout { timeout_ms } => OpError::ExecutionFailed(format!(
+            "Op '{}' timed out after {}ms",
+            trigger_name, timeout_ms
+        )),
         OpError::Context(msg) => {
             OpError::Context(format!("Op '{}' context error: {}", trigger_name, msg))
-        },
+        }
         OpError::BatchFailed(msg) => {
             OpError::BatchFailed(format!("Batch op '{}' failed: {}", trigger_name, msg))
-        },
+        }
         // Classified failures keep their identity through wrapping — the
         // wrap adds human context to the CHAIN, never touches class/code.
-        OpError::WrappedClassified { chain, code, class, reason, arg_urn } => {
-            OpError::WrappedClassified {
-                chain: format!("Batch op '{}' failed: {}", trigger_name, chain),
-                code,
-                class,
-                reason,
-                arg_urn,
-            }
+        OpError::WrappedClassified {
+            chain,
+            code,
+            class,
+            reason,
+            arg_urn,
+        } => OpError::WrappedClassified {
+            chain: format!("Batch op '{}' failed: {}", trigger_name, chain),
+            code,
+            class,
+            reason,
+            arg_urn,
         },
-        OpError::Classified { code, class, message, arg_urn } => {
-            OpError::WrappedClassified {
-                chain: format!("Op '{}' failed: {}: {}", trigger_name, code, message),
-                code,
-                class,
-                reason: message,
-                arg_urn,
-            }
+        OpError::Classified {
+            code,
+            class,
+            message,
+            arg_urn,
+        } => OpError::WrappedClassified {
+            chain: format!("Op '{}' failed: {}: {}", trigger_name, code, message),
+            code,
+            class,
+            reason: message,
+            arg_urn,
         },
         OpError::Aborted(reason) => {
             // Aborted errors should preserve their nature and not be wrapped as execution failures
             OpError::Aborted(format!("Op '{}' aborted: {}", trigger_name, reason))
-        },
+        }
         OpError::Trigger(msg) => {
             OpError::Trigger(format!("Op '{}' internal error: {}", trigger_name, msg))
-        },
+        }
         OpError::Other(boxed_error) => {
             OpError::ExecutionFailed(format!("Op '{}' failed: {}", trigger_name, boxed_error))
-        },
+        }
     }
 }
 
@@ -98,15 +116,15 @@ pub fn wrap_runtime_exception(error: Box<dyn std::error::Error + Send + Sync>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     struct TestOp;
-    
+
     #[async_trait]
     impl Op<i32> for TestOp {
         async fn perform(&self, _dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<i32> {
             Ok(42)
         }
-        
+
         fn metadata(&self) -> OpMetadata {
             OpMetadata::builder("TestOp").build()
         }
@@ -117,16 +135,16 @@ mod tests {
     async fn test0005_perform_with_auto_logging() {
         let mut dry = DryContext::new();
         let mut wet = WetContext::new();
-        
+
         let op = Box::new(TestOp);
-        
+
         let result = perform(op, &mut dry, &mut wet).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
     }
 
     // TEST0006: Verify get_caller_trigger_name() returns a string containing the module path with "::"
-    #[test] 
+    #[test]
     fn test0006_caller_trigger_name() {
         let name = get_caller_trigger_name();
         assert!(name.contains("ops"));
@@ -138,12 +156,12 @@ mod tests {
     fn test0007_wrap_nested_op_exception() {
         let original_error = OpError::ExecutionFailed("original error".to_string());
         let wrapped = wrap_nested_op_exception("TestOp", original_error);
-        
+
         match wrapped {
             OpError::ExecutionFailed(msg) => {
                 assert!(msg.contains("TestOp"));
                 assert!(msg.contains("original error"));
-            },
+            }
             _ => panic!("Expected ExecutionFailed error"),
         }
     }
@@ -163,7 +181,13 @@ mod tests {
         };
         let wrapped = wrap_nested_op_exception("GenerateOp", classified);
         match wrapped {
-            OpError::WrappedClassified { chain, code, class, reason, arg_urn } => {
+            OpError::WrappedClassified {
+                chain,
+                code,
+                class,
+                reason,
+                arg_urn,
+            } => {
                 assert!(chain.contains("GenerateOp"), "the wrap names the op");
                 assert!(chain.contains("prompt too large"));
                 assert_eq!(code, "CONTEXT_OVERFLOW");
@@ -191,7 +215,13 @@ mod tests {
             },
         );
         match rewrapped {
-            OpError::WrappedClassified { chain, code, class, reason, arg_urn } => {
+            OpError::WrappedClassified {
+                chain,
+                code,
+                class,
+                reason,
+                arg_urn,
+            } => {
                 assert!(chain.contains("OuterBatch"));
                 assert!(chain.contains("GenerateOp"));
                 assert_eq!(code, "CONTEXT_OVERFLOW");
@@ -208,12 +238,12 @@ mod tests {
     fn test0008_wrap_runtime_exception() {
         let error = Box::new(std::io::Error::new(std::io::ErrorKind::Other, "test error"));
         let wrapped = wrap_runtime_exception(error);
-        
+
         match wrapped {
             OpError::ExecutionFailed(msg) => {
                 assert!(msg.contains("Runtime error"));
                 assert!(msg.contains("test error"));
-            },
+            }
             _ => panic!("Expected ExecutionFailed error"),
         }
     }

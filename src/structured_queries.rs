@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 /// A hierarchical table of contents entry that can represent various Outline structures
-/// 
+///
 /// This flexible model can handle:
 /// - Simple flat TOCs: title + page
 /// - Chapter-based TOCs: chapters with subsections
@@ -13,19 +13,19 @@ use serde_json::json;
 pub struct OutlineEntry {
     /// The title/heading text (required)
     pub title: String,
-    
+
     /// Page number or range (e.g., "15", "15-20", "iv", "A-1")
     /// Optional because some entries might be section dividers
     pub page: Option<String>,
-    
+
     /// Hierarchical level (0 = top level, 1 = subsection, etc.)
     /// Helps maintain structure without complex nesting
     pub level: u8,
-    
+
     /// Optional type/category for semantic meaning
     /// Examples: "part", "chapter", "section", "appendix", "index"
     pub entry_type: Option<String>,
-    
+
     /// Child entries for hierarchical structures
     /// Empty for leaf entries
     pub children: Vec<OutlineEntry>,
@@ -41,32 +41,32 @@ impl OutlineEntry {
             children: Vec::new(),
         }
     }
-    
+
     pub fn with_type(mut self, entry_type: String) -> Self {
         self.entry_type = Some(entry_type);
         self
     }
-    
+
     pub fn with_children(mut self, children: Vec<OutlineEntry>) -> Self {
         self.children = children;
         self
     }
-    
+
     /// Add a child entry
     pub fn add_child(&mut self, child: OutlineEntry) {
         self.children.push(child);
     }
-    
+
     /// Get all entries flattened with their hierarchical context
     pub fn flatten(&self) -> Vec<FlatOutlineEntry> {
         let mut result = Vec::new();
         self.flatten_recursive(&mut result, Vec::new());
         result
     }
-    
+
     fn flatten_recursive(&self, result: &mut Vec<FlatOutlineEntry>, mut path: Vec<String>) {
         path.push(self.title.clone());
-        
+
         result.push(FlatOutlineEntry {
             title: self.title.clone(),
             page: self.page.clone(),
@@ -74,7 +74,7 @@ impl OutlineEntry {
             entry_type: self.entry_type.clone(),
             path: path.clone(),
         });
-        
+
         for child in &self.children {
             child.flatten_recursive(result, path.clone());
         }
@@ -97,13 +97,13 @@ pub struct FlatOutlineEntry {
 pub struct ListingOutline {
     /// Document title (optional)
     pub document_title: Option<String>,
-    
+
     /// Main Outline entries
     pub entries: Vec<OutlineEntry>,
-    
+
     /// Extraction confidence (0.0 - 1.0)
     pub confidence: f64,
-    
+
     /// Additional metadata about the Outline structure
     pub metadata: OutlineMetadata,
 }
@@ -117,17 +117,22 @@ impl ListingOutline {
             metadata: OutlineMetadata::default(),
         }
     }
-    
+
     /// Get all entries as a flat list
     pub fn flatten(&self) -> Vec<FlatOutlineEntry> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .flat_map(|entry| entry.flatten())
             .collect()
     }
-    
+
     /// Get entries at a specific level
     pub fn entries_at_level(&self, level: u8) -> Vec<&OutlineEntry> {
-        fn collect_at_level<'a>(entries: &'a [OutlineEntry], target_level: u8, result: &mut Vec<&'a OutlineEntry>) {
+        fn collect_at_level<'a>(
+            entries: &'a [OutlineEntry],
+            target_level: u8,
+            result: &mut Vec<&'a OutlineEntry>,
+        ) {
             for entry in entries {
                 if entry.level == target_level {
                     result.push(entry);
@@ -135,16 +140,17 @@ impl ListingOutline {
                 collect_at_level(&entry.children, target_level, result);
             }
         }
-        
+
         let mut result = Vec::new();
         collect_at_level(&self.entries, level, &mut result);
         result
     }
-    
+
     /// Get the maximum depth of the Outline
     pub fn max_depth(&self) -> u8 {
         fn max_depth_recursive(entries: &[OutlineEntry]) -> u8 {
-            entries.iter()
+            entries
+                .iter()
                 .map(|entry| {
                     let child_depth = if entry.children.is_empty() {
                         0
@@ -156,7 +162,7 @@ impl ListingOutline {
                 .max()
                 .unwrap_or(0)
         }
-        
+
         max_depth_recursive(&self.entries)
     }
 }
@@ -172,19 +178,19 @@ impl Default for ListingOutline {
 pub struct OutlineMetadata {
     /// Detected Outline style (e.g., "numeric", "roman", "alphabetic", "mixed")
     pub numbering_style: Option<String>,
-    
+
     /// Whether the Outline uses dots or other leaders
     pub has_leaders: bool,
-    
+
     /// Page numbering style (e.g., "arabic", "roman", "mixed")
     pub page_style: Option<String>,
-    
+
     /// Total number of entries
     pub total_entries: usize,
-    
+
     /// Number of hierarchical levels
     pub levels: u8,
-    
+
     /// Detected structure type (e.g., "chapters", "parts_chapters", "sections")
     pub structure_type: Option<String>,
 }
@@ -304,11 +310,19 @@ mod tests {
         let mut outline = ListingOutline::new();
         outline.entries = vec![
             OutlineEntry::new("Introduction".to_string(), Some("1".to_string()), 0),
-            OutlineEntry::new("Chapter 1: Getting Started".to_string(), Some("5".to_string()), 0),
-            OutlineEntry::new("Chapter 2: Advanced Topics".to_string(), Some("15".to_string()), 0),
+            OutlineEntry::new(
+                "Chapter 1: Getting Started".to_string(),
+                Some("5".to_string()),
+                0,
+            ),
+            OutlineEntry::new(
+                "Chapter 2: Advanced Topics".to_string(),
+                Some("15".to_string()),
+                0,
+            ),
             OutlineEntry::new("Conclusion".to_string(), Some("25".to_string()), 0),
         ];
-        
+
         assert_eq!(outline.max_depth(), 0);
         assert_eq!(outline.entries_at_level(0).len(), 4);
         assert_eq!(outline.flatten().len(), 4);
@@ -318,18 +332,32 @@ mod tests {
     #[test]
     fn test0025_hierarchical_outline() {
         let mut outline = ListingOutline::new();
-        
-        let mut chapter1 = OutlineEntry::new("Chapter 1: Basics".to_string(), Some("10".to_string()), 0)
-            .with_type("chapter".to_string());
-        chapter1.add_child(OutlineEntry::new("1.1 Introduction".to_string(), Some("10".to_string()), 1));
-        chapter1.add_child(OutlineEntry::new("1.2 Fundamentals".to_string(), Some("15".to_string()), 1));
-        
-        let mut chapter2 = OutlineEntry::new("Chapter 2: Advanced".to_string(), Some("20".to_string()), 0)
-            .with_type("chapter".to_string());
-        chapter2.add_child(OutlineEntry::new("2.1 Complex Topics".to_string(), Some("20".to_string()), 1));
-        
+
+        let mut chapter1 =
+            OutlineEntry::new("Chapter 1: Basics".to_string(), Some("10".to_string()), 0)
+                .with_type("chapter".to_string());
+        chapter1.add_child(OutlineEntry::new(
+            "1.1 Introduction".to_string(),
+            Some("10".to_string()),
+            1,
+        ));
+        chapter1.add_child(OutlineEntry::new(
+            "1.2 Fundamentals".to_string(),
+            Some("15".to_string()),
+            1,
+        ));
+
+        let mut chapter2 =
+            OutlineEntry::new("Chapter 2: Advanced".to_string(), Some("20".to_string()), 0)
+                .with_type("chapter".to_string());
+        chapter2.add_child(OutlineEntry::new(
+            "2.1 Complex Topics".to_string(),
+            Some("20".to_string()),
+            1,
+        ));
+
         outline.entries = vec![chapter1, chapter2];
-        
+
         assert_eq!(outline.max_depth(), 1);
         assert_eq!(outline.entries_at_level(0).len(), 2);
         assert_eq!(outline.entries_at_level(1).len(), 3);
@@ -340,28 +368,49 @@ mod tests {
     #[test]
     fn test0026_complex_part_based_outline() {
         let mut outline = ListingOutline::new();
-        
+
         // Part I with chapters
-        let mut part1 = OutlineEntry::new("Part I: Foundations".to_string(), Some("1".to_string()), 0)
-            .with_type("part".to_string());
-        
-        let mut chapter1 = OutlineEntry::new("Chapter 1: Introduction".to_string(), Some("3".to_string()), 1)
-            .with_type("chapter".to_string());
-        chapter1.add_child(OutlineEntry::new("1.1 Overview".to_string(), Some("3".to_string()), 2));
-        chapter1.add_child(OutlineEntry::new("1.2 Scope".to_string(), Some("5".to_string()), 2));
-        
-        let chapter2 = OutlineEntry::new("Chapter 2: Background".to_string(), Some("8".to_string()), 1)
-            .with_type("chapter".to_string());
-        
+        let mut part1 =
+            OutlineEntry::new("Part I: Foundations".to_string(), Some("1".to_string()), 0)
+                .with_type("part".to_string());
+
+        let mut chapter1 = OutlineEntry::new(
+            "Chapter 1: Introduction".to_string(),
+            Some("3".to_string()),
+            1,
+        )
+        .with_type("chapter".to_string());
+        chapter1.add_child(OutlineEntry::new(
+            "1.1 Overview".to_string(),
+            Some("3".to_string()),
+            2,
+        ));
+        chapter1.add_child(OutlineEntry::new(
+            "1.2 Scope".to_string(),
+            Some("5".to_string()),
+            2,
+        ));
+
+        let chapter2 = OutlineEntry::new(
+            "Chapter 2: Background".to_string(),
+            Some("8".to_string()),
+            1,
+        )
+        .with_type("chapter".to_string());
+
         part1.add_child(chapter1);
         part1.add_child(chapter2);
-        
+
         // Part II
-        let part2 = OutlineEntry::new("Part II: Applications".to_string(), Some("15".to_string()), 0)
-            .with_type("part".to_string());
-        
+        let part2 = OutlineEntry::new(
+            "Part II: Applications".to_string(),
+            Some("15".to_string()),
+            0,
+        )
+        .with_type("part".to_string());
+
         outline.entries = vec![part1, part2];
-        
+
         assert_eq!(outline.max_depth(), 2);
         assert_eq!(outline.entries_at_level(0).len(), 2); // 2 parts
         assert_eq!(outline.entries_at_level(1).len(), 2); // 2 chapters
@@ -373,16 +422,20 @@ mod tests {
     #[test]
     fn test0027_flatten_preserves_hierarchy() {
         let mut outline = ListingOutline::new();
-        
+
         let mut part = OutlineEntry::new("Part I".to_string(), Some("1".to_string()), 0);
         let mut chapter = OutlineEntry::new("Chapter 1".to_string(), Some("3".to_string()), 1);
-        chapter.add_child(OutlineEntry::new("Section 1.1".to_string(), Some("3".to_string()), 2));
+        chapter.add_child(OutlineEntry::new(
+            "Section 1.1".to_string(),
+            Some("3".to_string()),
+            2,
+        ));
         part.add_child(chapter);
         outline.entries = vec![part];
-        
+
         let flat = outline.flatten();
         assert_eq!(flat.len(), 3);
-        
+
         // Check paths
         assert_eq!(flat[0].path, vec!["Part I"]);
         assert_eq!(flat[1].path, vec!["Part I", "Chapter 1"]);

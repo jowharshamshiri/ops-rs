@@ -5,13 +5,13 @@ use thiserror::Error;
 pub enum OpError {
     #[error("Op execution failed: {0}")]
     ExecutionFailed(String),
-    
+
     #[error("Op timeout after {timeout_ms}ms")]
     Timeout { timeout_ms: u64 },
-    
+
     #[error("Context error: {0}")]
     Context(String),
-    
+
     #[error("Batch op failed: {0}")]
     BatchFailed(String),
 
@@ -32,10 +32,10 @@ pub enum OpError {
         /// Carried verbatim through wrapping, never invented downstream.
         arg_urn: Option<String>,
     },
-    
+
     #[error("Op aborted: {0}")]
     Aborted(String),
-    
+
     #[error("Trigger error: {0}")]
     Trigger(String),
 
@@ -56,7 +56,7 @@ pub enum OpError {
         /// (docs/failure-taxonomy.md discipline).
         arg_urn: Option<String>,
     },
-    
+
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -110,21 +110,32 @@ impl Clone for OpError {
     fn clone(&self) -> Self {
         match self {
             Self::ExecutionFailed(msg) => Self::ExecutionFailed(msg.clone()),
-            Self::Timeout { timeout_ms } => Self::Timeout { timeout_ms: *timeout_ms },
+            Self::Timeout { timeout_ms } => Self::Timeout {
+                timeout_ms: *timeout_ms,
+            },
             Self::Context(msg) => Self::Context(msg.clone()),
             Self::BatchFailed(msg) => Self::BatchFailed(msg.clone()),
-            Self::WrappedClassified { chain, code, class, reason, arg_urn } => {
-                Self::WrappedClassified {
-                    chain: chain.clone(),
-                    code: code.clone(),
-                    class: *class,
-                    reason: reason.clone(),
-                    arg_urn: arg_urn.clone(),
-                }
-            }
+            Self::WrappedClassified {
+                chain,
+                code,
+                class,
+                reason,
+                arg_urn,
+            } => Self::WrappedClassified {
+                chain: chain.clone(),
+                code: code.clone(),
+                class: *class,
+                reason: reason.clone(),
+                arg_urn: arg_urn.clone(),
+            },
             Self::Aborted(msg) => Self::Aborted(msg.clone()),
             Self::Trigger(msg) => Self::Trigger(msg.clone()),
-            Self::Classified { code, class, message, arg_urn } => Self::Classified {
+            Self::Classified {
+                code,
+                class,
+                message,
+                arg_urn,
+            } => Self::Classified {
                 code: code.clone(),
                 class: *class,
                 message: message.clone(),

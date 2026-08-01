@@ -42,7 +42,10 @@ impl OpMetadata {
             // since we can't serialize the actual references
             let mut context_keys = serde_json::Map::new();
             for key in ctx.keys() {
-                context_keys.insert(key.clone(), serde_json::Value::String("present".to_string()));
+                context_keys.insert(
+                    key.clone(),
+                    serde_json::Value::String("present".to_string()),
+                );
             }
             let context_json = serde_json::Value::Object(context_keys);
             validate_reference_schema(&context_json, schema)
@@ -59,7 +62,7 @@ impl OpMetadata {
     ) -> Result<ValidationReport, OpError> {
         let dry_report = self.validate_dry_context(dry)?;
         let wet_report = self.validate_wet_context(wet)?;
-        
+
         Ok(ValidationReport {
             is_valid: dry_report.is_valid && wet_report.is_valid,
             errors: [dry_report.errors, wet_report.errors].concat(),
@@ -195,17 +198,19 @@ impl TriggerFuse {
         }
         Ok(self.dry_context.clone())
     }
-
 }
 
 // Placeholder validation functions - these would use a proper JSON Schema validator
-fn validate_against_schema(value: &JsonValue, schema: &JsonValue) -> Result<ValidationReport, OpError> {
+fn validate_against_schema(
+    value: &JsonValue,
+    schema: &JsonValue,
+) -> Result<ValidationReport, OpError> {
     // TODO: Implement actual JSON Schema validation using jsonschema crate
     // For now, just do basic type checking
-    
+
     let mut errors = vec![];
     let warnings = vec![];
-    
+
     if let (Some(schema_obj), Some(value_obj)) = (schema.as_object(), value.as_object()) {
         // Check required fields
         if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
@@ -221,7 +226,7 @@ fn validate_against_schema(value: &JsonValue, schema: &JsonValue) -> Result<Vali
             }
         }
     }
-    
+
     Ok(ValidationReport {
         is_valid: errors.is_empty(),
         errors,
@@ -229,10 +234,13 @@ fn validate_against_schema(value: &JsonValue, schema: &JsonValue) -> Result<Vali
     })
 }
 
-fn validate_reference_schema(value: &JsonValue, schema: &JsonValue) -> Result<ValidationReport, OpError> {
+fn validate_reference_schema(
+    value: &JsonValue,
+    schema: &JsonValue,
+) -> Result<ValidationReport, OpError> {
     // Special validation for reference schemas - just check that required keys exist
     let mut errors = vec![];
-    
+
     if let (Some(schema_obj), Some(value_obj)) = (schema.as_object(), value.as_object()) {
         if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
             for req_field in required {
@@ -247,7 +255,7 @@ fn validate_reference_schema(value: &JsonValue, schema: &JsonValue) -> Result<Va
             }
         }
     }
-    
+
     Ok(ValidationReport {
         is_valid: errors.is_empty(),
         errors,

@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use crate::{BatchOp, DryContext, Op, OpMetadata, OpResult, WetContext};
 use async_trait::async_trait;
+use std::sync::Arc;
 
 pub mod predicates;
 pub use predicates::*;
@@ -11,29 +11,33 @@ pub use engine::*;
 
 #[async_trait]
 pub trait Trigger: Send + Sync {
-	fn name(&self) -> String;
-	
-	fn predicate(&self) -> Arc<dyn Op<bool>>;
+    fn name(&self) -> String;
+
+    fn predicate(&self) -> Arc<dyn Op<bool>>;
     fn actions(&self) -> Vec<Arc<dyn Op<()>>>;
 
-	async fn perform(&self, dry: &mut DryContext, wet: &mut WetContext) -> OpResult<()> {
-		let should = self.predicate().perform(dry, wet).await?;
-		if should {
-			let batch = BatchOp::new(self.actions());
-			batch.perform(dry, wet).await?;
-		}
-		Ok(())
-	}
-	
-	fn metadata(&self) -> OpMetadata {
-		OpMetadata {
-			name: format!("Trigger {} with {} actions", self.name(), self.actions().len()),
-			description: None,
-			input_schema: None,
-			reference_schema: None,
-			output_schema: None,
-		}
-	}
+    async fn perform(&self, dry: &mut DryContext, wet: &mut WetContext) -> OpResult<()> {
+        let should = self.predicate().perform(dry, wet).await?;
+        if should {
+            let batch = BatchOp::new(self.actions());
+            batch.perform(dry, wet).await?;
+        }
+        Ok(())
+    }
+
+    fn metadata(&self) -> OpMetadata {
+        OpMetadata {
+            name: format!(
+                "Trigger {} with {} actions",
+                self.name(),
+                self.actions().len()
+            ),
+            description: None,
+            input_schema: None,
+            reference_schema: None,
+            output_schema: None,
+        }
+    }
 }
 
 #[async_trait]

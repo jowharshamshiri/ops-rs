@@ -1,9 +1,9 @@
-use crate::prelude::*;
-use crate::op::Op;
-use crate::{DryContext, WetContext, OpMetadata};
 use crate::error::OpError;
+use crate::op::Op;
+use crate::prelude::*;
+use crate::{DryContext, OpMetadata, WetContext};
 use async_trait::async_trait;
-use jsonschema::{JSONSchema, Draft};
+use jsonschema::{Draft, JSONSchema};
 
 pub struct ValidatingWrapper<T> {
     wrapped_op: Box<dyn Op<T>>,
@@ -11,7 +11,7 @@ pub struct ValidatingWrapper<T> {
     validate_output: bool,
 }
 
-impl<T> ValidatingWrapper<T> 
+impl<T> ValidatingWrapper<T>
 where
     T: Send + Sync + 'static + serde::Serialize,
 {
@@ -53,7 +53,9 @@ where
             let compiled = JSONSchema::options()
                 .with_draft(Draft::Draft7)
                 .compile(schema)
-                .map_err(|e| OpError::Context(format!("Invalid input schema for {}: {}", metadata.name, e)))?;
+                .map_err(|e| {
+                    OpError::Context(format!("Invalid input schema for {}: {}", metadata.name, e))
+                })?;
 
             // Get all context values as a JSON object for validation
             let context_json = serde_json::json!(dry.values());
@@ -64,7 +66,7 @@ where
                 let error_messages: Vec<String> = errors
                     .map(|e| format!("{}: {}", e.instance_path, e))
                     .collect();
-                
+
                 return Err(OpError::Context(format!(
                     "Input validation failed for {}: {}",
                     metadata.name,
@@ -133,11 +135,17 @@ where
             let compiled = JSONSchema::options()
                 .with_draft(Draft::Draft7)
                 .compile(schema)
-                .map_err(|e| OpError::Context(format!("Invalid output schema for {}: {}", metadata.name, e)))?;
+                .map_err(|e| {
+                    OpError::Context(format!(
+                        "Invalid output schema for {}: {}",
+                        metadata.name, e
+                    ))
+                })?;
 
             // Serialize the output
-            let output_json = serde_json::to_value(output)
-                .map_err(|e| OpError::Context(format!("Failed to serialize output for validation: {}", e)))?;
+            let output_json = serde_json::to_value(output).map_err(|e| {
+                OpError::Context(format!("Failed to serialize output for validation: {}", e))
+            })?;
 
             // Validate
             let validation_result = compiled.validate(&output_json);
@@ -145,7 +153,7 @@ where
                 let error_messages: Vec<String> = errors
                     .map(|e| format!("{}: {}", e.instance_path, e))
                     .collect();
-                
+
                 return Err(OpError::Context(format!(
                     "Output validation failed for {}: {}",
                     metadata.name,
@@ -164,22 +172,22 @@ where
 {
     async fn perform(&self, dry: &mut DryContext, wet: &mut WetContext) -> OpResult<T> {
         let metadata = self.wrapped_op.metadata();
-        
+
         // Validate input before execution
         self.validate_input_schema(dry, &metadata)?;
-        
+
         // Validate references before execution
         self.validate_references_schema(wet, &metadata)?;
-        
+
         // Execute wrapped op
         let result = self.wrapped_op.perform(dry, wet).await?;
-        
+
         // Validate output after execution
         self.validate_output_schema(&result, &metadata)?;
-        
+
         Ok(result)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         // Pass through metadata from wrapped op
         self.wrapped_op.metadata()
@@ -200,7 +208,11 @@ mod tests {
 
     #[async_trait]
     impl Op<TestOutput> for ValidatedOp {
-        async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<TestOutput> {
+        async fn perform(
+            &self,
+            dry: &mut DryContext,
+            _wet: &mut WetContext,
+        ) -> OpResult<TestOutput> {
             let value = dry.get_required::<i32>("value")?;
             Ok(TestOutput { value })
         }
@@ -230,11 +242,11 @@ mod tests {
     #[tokio::test]
     async fn test0038_valid_input_output() {
         let validator = ValidatingWrapper::new(Box::new(ValidatedOp));
-        
+
         let mut dry = DryContext::new();
         dry.insert("value", 42);
         let mut wet = WetContext::new();
-        
+
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().value, 42);
@@ -244,11 +256,11 @@ mod tests {
     #[tokio::test]
     async fn test0039_invalid_input_missing_required() {
         let validator = ValidatingWrapper::new(Box::new(ValidatedOp));
-        
+
         let mut dry = DryContext::new();
         // Missing required "value" field
         let mut wet = WetContext::new();
-        
+
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -262,11 +274,11 @@ mod tests {
     #[tokio::test]
     async fn test0040_invalid_input_out_of_range() {
         let validator = ValidatingWrapper::new(Box::new(ValidatedOp));
-        
+
         let mut dry = DryContext::new();
         dry.insert("value", 150); // Exceeds maximum of 100
         let mut wet = WetContext::new();
-        
+
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -301,11 +313,11 @@ mod tests {
         }
 
         let validator = ValidatingWrapper::input_only(Box::new(NoOutputSchemaOp));
-        
+
         let mut dry = DryContext::new();
         dry.insert("value", 42);
         let mut wet = WetContext::new();
-        
+
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
@@ -318,7 +330,11 @@ mod tests {
 
         #[async_trait]
         impl Op<TestOutput> for NoInputSchemaOp {
-            async fn perform(&self, _dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<TestOutput> {
+            async fn perform(
+                &self,
+                _dry: &mut DryContext,
+                _wet: &mut WetContext,
+            ) -> OpResult<TestOutput> {
                 Ok(TestOutput { value: 99 })
             }
 
@@ -336,10 +352,10 @@ mod tests {
         }
 
         let validator = ValidatingWrapper::output_only(Box::new(NoInputSchemaOp));
-        
+
         let mut dry = DryContext::new();
         let mut wet = WetContext::new();
-        
+
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().value, 99);
@@ -362,10 +378,10 @@ mod tests {
         }
 
         let validator = ValidatingWrapper::new(Box::new(NoSchemaOp));
-        
+
         let mut dry = DryContext::new();
         let mut wet = WetContext::new();
-        
+
         // Should succeed even without schemas
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_ok());
@@ -377,9 +393,12 @@ mod tests {
     async fn test0044_metadata_transparency() {
         let validator = ValidatingWrapper::new(Box::new(ValidatedOp));
         let metadata = validator.metadata();
-        
+
         assert_eq!(metadata.name, "ValidatedOp");
-        assert_eq!(metadata.description, Some("Op with schema validation".to_string()));
+        assert_eq!(
+            metadata.description,
+            Some("Op with schema validation".to_string())
+        );
         assert!(metadata.input_schema.is_some());
         assert!(metadata.output_schema.is_some());
     }
@@ -391,7 +410,11 @@ mod tests {
 
         #[async_trait]
         impl Op<String> for ServiceRequiringOp {
-            async fn perform(&self, _dry: &mut DryContext, wet: &mut WetContext) -> OpResult<String> {
+            async fn perform(
+                &self,
+                _dry: &mut DryContext,
+                wet: &mut WetContext,
+            ) -> OpResult<String> {
                 let service = wet.get_required::<String>("database")?;
                 Ok(format!("Used service: {}", service))
             }
@@ -411,19 +434,21 @@ mod tests {
         }
 
         let validator = ValidatingWrapper::new(Box::new(ServiceRequiringOp));
-        
+
         let mut dry = DryContext::new();
         let mut wet = WetContext::new();
-        
+
         // Missing required references
         let result = validator.perform(&mut dry, &mut wet).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         match err {
-            OpError::Context(msg) => assert!(msg.contains("Required reference 'database' not found")),
+            OpError::Context(msg) => {
+                assert!(msg.contains("Required reference 'database' not found"))
+            }
             _ => panic!("Expected Context error"),
         }
-        
+
         // Add one reference but not all
         wet.insert_ref("database", "postgresql".to_string());
         let result = validator.perform(&mut dry, &mut wet).await;
@@ -433,7 +458,7 @@ mod tests {
             OpError::Context(msg) => assert!(msg.contains("Required reference 'cache' not found")),
             _ => panic!("Expected Context error"),
         }
-        
+
         // Add all required references
         wet.insert_ref("cache", "redis".to_string());
         let result = validator.perform(&mut dry, &mut wet).await;
@@ -497,7 +522,10 @@ mod tests {
 
         // Missing required reference — must be rejected even though input validation is off
         let result = validator.perform(&mut dry, &mut wet).await;
-        assert!(result.is_err(), "output_only must still validate references");
+        assert!(
+            result.is_err(),
+            "output_only must still validate references"
+        );
         match result.unwrap_err() {
             OpError::Context(msg) => assert!(msg.contains("database")),
             e => panic!("expected Context error, got {:?}", e),
@@ -506,6 +534,9 @@ mod tests {
         // With the reference present — must succeed
         wet.insert_ref("database", "postgres://localhost".to_string());
         let result = validator.perform(&mut dry, &mut wet).await;
-        assert!(result.is_ok(), "should succeed when required reference is present");
+        assert!(
+            result.is_ok(),
+            "should succeed when required reference is present"
+        );
     }
 }

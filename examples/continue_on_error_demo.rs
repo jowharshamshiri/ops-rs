@@ -1,6 +1,6 @@
-use ops::prelude::*;
-use ops::{repeat, DryContext, WetContext, Op, OpResult, OpMetadata, OpError};
 use async_trait::async_trait;
+use ops::prelude::*;
+use ops::{repeat, DryContext, Op, OpError, OpMetadata, OpResult, WetContext};
 
 #[derive(Debug)]
 struct SaveTrackedFileOp {
@@ -18,15 +18,15 @@ impl Op<()> for SaveTrackedFileOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
         let counter: usize = dry.get(&self.counter_key).unwrap_or(0);
         println!("SaveTrackedFileOp: processing file {}", counter);
-        
+
         // Simulate failure on iteration 2
         if counter == 2 {
             return Err(OpError::ExecutionFailed("Failed to save file".to_string()));
         }
-        
+
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("SaveTrackedFileOp").build()
     }
@@ -47,10 +47,13 @@ impl GenerateThumbnailOp {
 impl Op<()> for GenerateThumbnailOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<()> {
         let counter: usize = dry.get(&self.counter_key).unwrap_or(0);
-        println!("GenerateThumbnailOp: generating thumbnail for iteration {}", counter);
+        println!(
+            "GenerateThumbnailOp: generating thumbnail for iteration {}",
+            counter
+        );
         Ok(())
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("GenerateThumbnailOp").build()
     }
@@ -71,14 +74,13 @@ repeat! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut dry = DryContext::new()
-        .with_value("pdcl_limit", 5_usize);
+    let mut dry = DryContext::new().with_value("pdcl_limit", 5_usize);
     let mut wet = WetContext::new();
-    
+
     let loop_op = PostDiscoveryLoopOp::new();
-    
+
     println!("Starting post-discovery loop with continue_on_error=true");
-    
+
     match loop_op.perform(&mut dry, &mut wet).await {
         Ok(_) => {
             println!("Loop completed successfully, even with some iterations failing");
@@ -87,6 +89,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Loop failed: {}", e);
         }
     }
-    
+
     Ok(())
 }

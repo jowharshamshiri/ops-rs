@@ -13,7 +13,7 @@ impl DatabaseService {
             connection_string: connection_string.to_string(),
         }
     }
-    
+
     async fn query(&self, query: &str) -> String {
         format!("Result of '{}' from {}", query, self.connection_string)
     }
@@ -27,23 +27,23 @@ impl Op<String> for QueryOp {
     async fn perform(&self, dry: &mut DryContext, wet: &mut WetContext) -> OpResult<String> {
         // Get query from dry context (serializable data)
         let query = dry.get_required::<String>("query")?;
-        
+
         // Get database service from wet context (runtime reference)
         let db_service = wet.get_required::<DatabaseService>("db_service")?;
-        
+
         // Execute the query
         let result = db_service.query(&query).await;
-        
+
         Ok(result)
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder("QueryOp")
             .description("Execute a database query with validation")
             .input_schema(json!({
                 "type": "object",
                 "properties": {
-                    "query": { 
+                    "query": {
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 1000,
@@ -56,7 +56,7 @@ impl Op<String> for QueryOp {
             .reference_schema(json!({
                 "type": "object",
                 "properties": {
-                    "db_service": { 
+                    "db_service": {
                         "type": "DatabaseService",
                         "description": "Database service for query execution"
                     }
@@ -77,21 +77,19 @@ impl Op<String> for QueryOp {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
-    
+
     println!("=== Dry/Wet Context Demo ===\n");
-    
+
     // Create an op
     let op = QueryOp;
-    
+
     // Create dry context with serializable data
-    let mut dry = DryContext::new()
-        .with_value("query", "SELECT * FROM users WHERE active = true");
-    
+    let mut dry = DryContext::new().with_value("query", "SELECT * FROM users WHERE active = true");
+
     // Create wet context with runtime references
     let db_service = DatabaseService::new("postgres://localhost/mydb");
-    let mut wet = WetContext::new()
-        .with_ref("db_service", db_service);
-    
+    let mut wet = WetContext::new().with_ref("db_service", db_service);
+
     // Validate contexts against op metadata
     println!("Validating contexts...");
     let validation_report = op.metadata().validate_contexts(&dry, &wet)?;
@@ -101,46 +99,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("✗ Validation errors: {:?}\n", validation_report.errors);
         return Ok(());
     }
-    
+
     // Execute the op
     println!("Executing op...");
     let result = op.perform(&mut dry, &mut wet).await?;
     println!("Result: {}\n", result);
-    
+
     // Demonstrate op request persistence (simulated)
     println!("Creating op request for later execution...");
     let trigger_fuse = TriggerFuse::new("QueryOp")
         .with_data("query", "SELECT COUNT(*) FROM orders")
         .with_metadata(op.metadata());
-    
+
     println!("Op request created:");
     println!("  ID: {}", trigger_fuse.id);
     println!("  Op: {}", trigger_fuse.trigger_name);
     println!("  Created: {}", trigger_fuse.created_at);
-    
+
     println!("✓ Op request created (persistence not implemented)\n");
-    
+
     // Later: validate and get dry context
     let loaded_dry = trigger_fuse.validate_and_get_dry_context()?;
     println!("Loaded dry context:");
     println!("  query: {:?}", loaded_dry.get::<String>("query"));
-    
+
     // Execute with new wet context
     let new_db_service = DatabaseService::new("postgres://backup-server/mydb");
-    let mut new_wet = WetContext::new()
-        .with_ref("db_service", new_db_service);
-    
+    let mut new_wet = WetContext::new().with_ref("db_service", new_db_service);
+
     println!("\nExecuting loaded op with different database...");
     let mut loaded_dry = loaded_dry;
     let new_result = op.perform(&mut loaded_dry, &mut new_wet).await?;
     println!("Result: {}", new_result);
-    
+
     // Demonstrate output validation
     println!("\nValidating output...");
     let output_validation = op.metadata().validate_output(&new_result)?;
     if output_validation.is_fully_valid() {
         println!("✓ Output is valid!");
     }
-    
+
     Ok(())
 }

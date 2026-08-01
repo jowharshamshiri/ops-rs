@@ -1,5 +1,5 @@
 use ops::prelude::*;
-use ops::{repeat_until, break_loop, continue_loop, break_loop_scoped};
+use ops::{break_loop, break_loop_scoped, continue_loop, repeat_until};
 
 // Example operations for nested loop testing
 #[derive(Debug)]
@@ -22,10 +22,12 @@ impl Op<String> for OuterOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<String> {
         let outer_iter = dry.get::<usize>("outer_counter").unwrap_or(0);
         let inner_iter = dry.get::<usize>("inner_counter").unwrap_or(0);
-        
-        println!("OuterOp[{}] - Outer:{} Inner:{} - Action: {}", 
-                self.id, outer_iter, inner_iter, self.action);
-        
+
+        println!(
+            "OuterOp[{}] - Outer:{} Inner:{} - Action: {}",
+            self.id, outer_iter, inner_iter, self.action
+        );
+
         match self.action.as_str() {
             "break_inner" if outer_iter == 1 && inner_iter == 1 => {
                 println!("    Breaking inner loop!");
@@ -47,10 +49,13 @@ impl Op<String> for OuterOp {
                 println!("   OK Normal processing");
             }
         }
-        
-        Ok(format!("OuterOp[{}]-{}-{}", self.id, outer_iter, inner_iter))
+
+        Ok(format!(
+            "OuterOp[{}]-{}-{}",
+            self.id, outer_iter, inner_iter
+        ))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&format!("OuterOp-{}", self.id)).build()
     }
@@ -72,12 +77,18 @@ impl Op<String> for InnerOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<String> {
         let outer_iter = dry.get::<usize>("outer_counter").unwrap_or(0);
         let inner_iter = dry.get::<usize>("inner_counter").unwrap_or(0);
-        
-        println!(" InnerOp[{}] - Outer:{} Inner:{}", self.id, outer_iter, inner_iter);
-        
-        Ok(format!("InnerOp[{}]-{}-{}", self.id, outer_iter, inner_iter))
+
+        println!(
+            " InnerOp[{}] - Outer:{} Inner:{}",
+            self.id, outer_iter, inner_iter
+        );
+
+        Ok(format!(
+            "InnerOp[{}]-{}-{}",
+            self.id, outer_iter, inner_iter
+        ))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&format!("InnerOp-{}", self.id)).build()
     }
@@ -99,27 +110,36 @@ impl Op<String> for ControlOp {
     async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<String> {
         let outer_iter = dry.get::<usize>("outer_counter").unwrap_or(0);
         let inner_iter = dry.get::<usize>("inner_counter").unwrap_or(0);
-        
+
         // Control the loops
         match self.name.as_str() {
             "inner_controller" => {
                 // Inner loop runs max 4 times per outer iteration
                 let should_continue = inner_iter < 3;
                 dry.insert("inner_should_continue", should_continue);
-                println!("InnerController: inner_iter={} -> should_continue={}", inner_iter, should_continue);
+                println!(
+                    "InnerController: inner_iter={} -> should_continue={}",
+                    inner_iter, should_continue
+                );
             }
             "outer_controller" => {
                 // Outer loop runs max 4 times total
                 let should_continue = outer_iter < 3;
                 dry.insert("outer_should_continue", should_continue);
-                println!("OuterController: outer_iter={} -> should_continue={}", outer_iter, should_continue);
+                println!(
+                    "OuterController: outer_iter={} -> should_continue={}",
+                    outer_iter, should_continue
+                );
             }
             _ => {}
         }
-        
-        Ok(format!("ControlOp[{}]-{}-{}", self.name, outer_iter, inner_iter))
+
+        Ok(format!(
+            "ControlOp[{}]-{}-{}",
+            self.name, outer_iter, inner_iter
+        ))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         OpMetadata::builder(&format!("ControlOp-{}", self.name)).build()
     }
@@ -161,7 +181,7 @@ impl Op<String> for InnerLoopWrapper {
         let results = self.inner.perform(dry, wet).await?;
         Ok(format!("InnerLoop_Results[{}]", results.len()))
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         self.inner.metadata()
     }
@@ -170,7 +190,7 @@ impl Op<String> for InnerLoopWrapper {
 // Outer loop - processes major iterations
 repeat_until! {
     OuterLoop<String> = {
-        counter: "outer_counter", 
+        counter: "outer_counter",
         condition: "outer_should_continue",
         max_iterations: 10,
         ops: [
@@ -202,10 +222,10 @@ impl Op<Vec<String>> for OuterLoopWrapper {
         // Store the outer loop ID for nested ops to reference
         let outer_loop_id = format!("outer_{}", uuid::Uuid::new_v4());
         dry.insert("outer_loop_id", &outer_loop_id);
-        
+
         self.inner.perform(dry, wet).await
     }
-    
+
     fn metadata(&self) -> OpMetadata {
         self.inner.metadata()
     }
@@ -215,13 +235,13 @@ impl Op<Vec<String>> for OuterLoopWrapper {
 async fn main() -> OpResult<()> {
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
-    
+
     println!(" NESTED LOOP SCOPED CONTROL DEMONSTRATION \n");
-    
+
     // Initialize conditions
     dry.insert("outer_should_continue", true);
     dry.insert("inner_should_continue", true);
-    
+
     println!("=== Starting Nested Loop Execution ===");
     println!("Expected behavior:");
     println!("• Outer loop: 4 iterations (0,1,2,3)");
@@ -231,7 +251,7 @@ async fn main() -> OpResult<()> {
     println!("  - Break inner at outer:1, inner:1");
     println!("  - Break outer at outer:2, inner:0");
     println!();
-    
+
     let outer_loop = OuterLoopWrapper::new();
     match outer_loop.perform(&mut dry, &mut wet).await {
         Ok(results) => {
@@ -246,13 +266,13 @@ async fn main() -> OpResult<()> {
         }
         Err(e) => println!("ERR Error: {}", e),
     }
-    
+
     println!("\n SUMMARY:");
     println!("• Each loop has unique UUID-based control variables");
     println!("• break_loop!() targets the current (innermost) loop");
     println!("• break_loop_scoped!() can target specific outer loops");
     println!("• continue_loop!() targets the current loop");
     println!("• No interference between nested loop control flows");
-    
+
     Ok(())
 }
