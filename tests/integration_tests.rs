@@ -2,7 +2,7 @@
 // Tests end-to-end functionality with all implemented features
 
 use async_trait::async_trait;
-use ops::{
+use ops_rs::{
     get_caller_trigger_name, perform, wrap_nested_op_exception, BatchOp, DryContext,
     LoggingWrapper, Op, OpError, OpMetadata, TimeBoundWrapper, WetContext,
 };

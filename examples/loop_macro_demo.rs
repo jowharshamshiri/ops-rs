@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::repeat;
+use ops_rs::prelude::*;
+use ops_rs::repeat;
 use serde_json::json;
 
 // Op that increments a value

@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{abort, break_loop, continue_loop, repeat_until};
+use ops_rs::prelude::*;
+use ops_rs::{abort, break_loop, continue_loop, repeat_until};
 
 // Example operation that can break, continue, or abort
 #[derive(Debug)]

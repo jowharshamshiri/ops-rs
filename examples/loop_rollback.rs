@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::LoopOp;
+use ops_rs::prelude::*;
+use ops_rs::LoopOp;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

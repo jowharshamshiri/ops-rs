@@ -1,5 +1,5 @@
-use ops::batch;
-use ops::prelude::*;
+use ops_rs::batch;
+use ops_rs::prelude::*;
 use serde_json::json;
 
 // First op: validates input

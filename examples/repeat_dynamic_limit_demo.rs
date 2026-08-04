@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::repeat;
+use ops_rs::prelude::*;
+use ops_rs::repeat;
 
 // Simple op that prints the iteration
 struct PrintOp;

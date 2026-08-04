@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ops::{
+use ops_rs::{
     dry_get, dry_put, dry_require, dry_result, wet_put_arc, wet_put_ref, wet_require_ref,
     DryContext, Op, OpError, OpMetadata, WetContext,
 };

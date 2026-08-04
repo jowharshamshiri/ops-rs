@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{dry_get, dry_put, dry_require, dry_result, perform};
+use ops_rs::prelude::*;
+use ops_rs::{dry_get, dry_put, dry_require, dry_result, perform};
 
 // Define ops that can work in a daisy chain
 struct DoubleNumberOp;

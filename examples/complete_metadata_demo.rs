@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{dry_put, dry_require, wet_put_ref, wet_require_ref, TriggerFuse};
+use ops_rs::prelude::*;
+use ops_rs::{dry_put, dry_require, wet_put_ref, wet_require_ref, TriggerFuse};
 use serde_json::json;
 use std::sync::Arc;
 

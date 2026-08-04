@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use ops::prelude::*;
-use ops::{repeat, DryContext, Op, OpError, OpMetadata, OpResult, WetContext};
+use ops_rs::prelude::*;
+use ops_rs::{repeat, DryContext, Op, OpError, OpMetadata, OpResult, WetContext};
 
 #[derive(Debug)]
 struct SaveTrackedFileOp {

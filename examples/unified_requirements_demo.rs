@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{dry_put, dry_require, perform, wet_put_ref, wet_require_ref};
+use ops_rs::prelude::*;
+use ops_rs::{dry_put, dry_require, perform, wet_put_ref, wet_require_ref};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 

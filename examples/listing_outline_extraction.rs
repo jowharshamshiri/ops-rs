@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{batch, generate_outline_schema, ListingOutline, OutlineEntry, OutlineMetadata};
+use ops_rs::prelude::*;
+use ops_rs::{batch, generate_outline_schema, ListingOutline, OutlineEntry, OutlineMetadata};
 use serde_json::json;
 
 // Mock structured query op for table of contents extraction

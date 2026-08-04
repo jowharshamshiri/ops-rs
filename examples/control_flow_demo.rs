@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{abort, check_abort, continue_loop, BatchOp, LoopOp};
+use ops_rs::prelude::*;
+use ops_rs::{abort, check_abort, continue_loop, BatchOp, LoopOp};
 use std::sync::Arc;
 
 /// Example op that aborts based on input

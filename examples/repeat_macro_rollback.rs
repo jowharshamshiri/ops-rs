@@ -1,5 +1,5 @@
-use ops::dry_put;
-use ops::prelude::*;
+use ops_rs::dry_put;
+use ops_rs::prelude::*;
 use std::sync::{Arc, Mutex};
 
 /// Example demonstrating the repeat! macro with rollback functionality
@@ -107,7 +107,7 @@ impl Op<Vec<u32>> for TestLoop {
             Arc::new(FailingOp::new(2)), // Fail on iteration 2
         ];
 
-        let loop_op = ops::LoopOp::new(self.counter_var.clone(), limit, ops);
+        let loop_op = ops_rs::LoopOp::new(self.counter_var.clone(), limit, ops);
         loop_op.perform(dry, wet).await
     }
 

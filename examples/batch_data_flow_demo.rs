@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{BatchOp, DryContext, Op, OpMetadata, WetContext};
+use ops_rs::prelude::*;
+use ops_rs::{BatchOp, DryContext, Op, OpMetadata, WetContext};
 use serde_json::json;
 use std::sync::Arc;
 

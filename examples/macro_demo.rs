@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{dry_get, dry_put, dry_require, wet_put_ref, wet_require_ref};
+use ops_rs::prelude::*;
+use ops_rs::{dry_get, dry_put, dry_require, wet_put_ref, wet_require_ref};
 use std::sync::Arc;
 
 // Example service for demonstration

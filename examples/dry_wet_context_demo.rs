@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::TriggerFuse;
+use ops_rs::prelude::*;
+use ops_rs::TriggerFuse;
 use serde_json::json;
 
 // Example service that would be in the wet context

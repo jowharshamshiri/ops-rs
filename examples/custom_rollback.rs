@@ -1,4 +1,4 @@
-use ops::prelude::*;
+use ops_rs::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -102,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:?}\n", *search_index.lock().unwrap());
 
     // Create and execute batch
-    let batch = ops::BatchOp::new(ops);
+    let batch = ops_rs::BatchOp::new(ops);
     let mut dry = DryContext::new();
     let mut wet = WetContext::new();
 

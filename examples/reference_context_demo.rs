@@ -1,4 +1,4 @@
-use ops::{wet_get_ref, wet_put_arc, wet_put_ref, wet_require_ref};
+use ops_rs::{wet_get_ref, wet_put_arc, wet_put_ref, wet_require_ref};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Reference Context Demo ===");
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 6: Demonstrating wet context use in ops
     println!("\n6. Using wet context in an op...");
 
-    use ops::prelude::*;
+    use ops_rs::prelude::*;
 
     struct DataProcessorOp;
 

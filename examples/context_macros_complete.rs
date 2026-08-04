@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{
+use ops_rs::prelude::*;
+use ops_rs::{
     dry_get, dry_get_key, dry_put, dry_put_key, dry_require, dry_require_key, dry_result,
     wet_get_ref, wet_get_ref_key, wet_put_arc, wet_put_arc_key, wet_require_ref,
     wet_require_ref_key,

@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{break_loop, break_loop_scoped, continue_loop, repeat_until};
+use ops_rs::prelude::*;
+use ops_rs::{break_loop, break_loop_scoped, continue_loop, repeat_until};
 
 // Example operations for nested loop testing
 #[derive(Debug)]

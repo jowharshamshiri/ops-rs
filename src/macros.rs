@@ -917,7 +917,7 @@ macro_rules! op_wrapper {
 ///
 /// # Usage
 /// ```
-/// use ops::{abort, DryContext, OpError};
+/// use ops_rs::{abort, DryContext, OpError};
 ///
 /// fn example_op(dry: &mut DryContext) -> Result<(), OpError> {
 ///     abort!(dry);
@@ -945,7 +945,7 @@ macro_rules! abort {
 ///
 /// # Usage
 /// ```
-/// use ops::{continue_loop, DryContext, OpError};
+/// use ops_rs::{continue_loop, DryContext, OpError};
 ///
 /// fn example_op(dry: &mut DryContext) -> Result<i32, OpError> {
 ///     continue_loop!(dry);
@@ -972,7 +972,7 @@ macro_rules! continue_loop {
 ///
 /// # Usage
 /// ```
-/// use ops::{break_loop, DryContext, OpError};
+/// use ops_rs::{break_loop, DryContext, OpError};
 ///
 /// fn example_op(dry: &mut DryContext) -> Result<i32, OpError> {
 ///     break_loop!(dry);
@@ -994,7 +994,7 @@ macro_rules! break_loop {
 ///
 /// # Usage
 /// ```
-/// use ops::{break_loop_scoped, DryContext, OpError};
+/// use ops_rs::{break_loop_scoped, DryContext, OpError};
 ///
 /// fn example_op(dry: &mut DryContext) -> Result<i32, OpError> {
 ///     break_loop_scoped!(dry, "my_loop_id");
@@ -1015,7 +1015,7 @@ macro_rules! break_loop_scoped {
 ///
 /// # Usage
 /// ```
-/// use ops::{check_abort, DryContext, OpError};
+/// use ops_rs::{check_abort, DryContext, OpError};
 ///
 /// fn example_op(dry: &mut DryContext) -> Result<i32, OpError> {
 ///     check_abort!(dry);

@@ -25,14 +25,14 @@ tokio = { version = "1.0", features = ["full"] }
 ### Basic Usage
 
 ```rust
-use ops::{Op, DryContext, WetContext, OpMetadata, perform};
+use ops_rs::{Op, DryContext, WetContext, OpMetadata, perform};
 use async_trait::async_trait;
 
 struct GreetingOp;
 
 #[async_trait]
 impl Op<String> for GreetingOp {
-    async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> Result<String, ops::OpError> {
+    async fn perform(&self, dry: &mut DryContext, _wet: &mut WetContext) -> Result<String, ops_rs::OpError> {
         let name = dry.get_required::<String>("name")?;
         Ok(format!("Hello, {}!", name))
     }
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Wrapper Composition
 
 ```rust
-use ops::{LoggingWrapper, TimeBoundWrapper, DryContext, WetContext};
+use ops_rs::{LoggingWrapper, TimeBoundWrapper, DryContext, WetContext};
 use std::time::Duration;
 
 let op = Box::new(GreetingOp);
@@ -76,7 +76,7 @@ let result = logged_op.perform(&dry, &wet).await?;
 ### Batch Operations
 
 ```rust
-use ops::{BatchOp, DryContext, WetContext};
+use ops_rs::{BatchOp, DryContext, WetContext};
 use std::sync::Arc;
 
 let ops: Vec<Arc<dyn Op<String>>> = vec![
@@ -113,7 +113,7 @@ let results = batch.perform(&mut dry, &mut wet).await?;
 Ergonomic context access patterns:
 
 ```rust
-use ops::{dry_put, dry_require, wet_put_ref, wet_require_ref};
+use ops_rs::{dry_put, dry_require, wet_put_ref, wet_require_ref};
 
 // Dry context (serializable data)
 dry_put!(dry, user_id);

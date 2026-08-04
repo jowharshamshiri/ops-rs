@@ -1,5 +1,5 @@
-use ops::prelude::*;
-use ops::{batch, break_loop, continue_loop, repeat, repeat_until};
+use ops_rs::prelude::*;
+use ops_rs::{batch, break_loop, continue_loop, repeat, repeat_until};
 
 // Example showcasing the complete scoped composable op system
 
