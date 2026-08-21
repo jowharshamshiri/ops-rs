@@ -34,6 +34,11 @@ pub enum AttributionClass {
     /// Everything else: a defect in the engine or a cartridge. Ours, said
     /// plainly. Retryable (races un-race), but never blamed on the user.
     Internal,
+    /// The USER decided it: an operator cancelled the run. Not a failure
+    /// at all — the terminal a request ends with when a human chose to end
+    /// it. Never retried automatically (the user said stop), never counted
+    /// as a defect, and the one class under which "cancelled" is the truth.
+    User,
 }
 
 impl AttributionClass {
@@ -45,6 +50,7 @@ impl AttributionClass {
             AttributionClass::Resource => "resource",
             AttributionClass::Environment => "environment",
             AttributionClass::Internal => "internal",
+            AttributionClass::User => "user",
         }
     }
 
@@ -55,15 +61,17 @@ impl AttributionClass {
             "resource" => Some(AttributionClass::Resource),
             "environment" => Some(AttributionClass::Environment),
             "internal" => Some(AttributionClass::Internal),
+            "user" => Some(AttributionClass::User),
             _ => None,
         }
     }
 
     /// Whether retrying can NEVER succeed: the failure is a deterministic
-    /// function of the input. Resource/environment/internal stay retryable
-    /// (memory frees up, networks recover, races un-race).
+    /// function of the input, or the user chose to end it.
+    /// Resource/environment/internal stay retryable (memory frees up,
+    /// networks recover, races un-race).
     pub fn is_permanent(&self) -> bool {
-        matches!(self, AttributionClass::Input)
+        matches!(self, AttributionClass::Input | AttributionClass::User)
     }
 }
 
@@ -85,6 +93,7 @@ mod tests {
             AttributionClass::Resource,
             AttributionClass::Environment,
             AttributionClass::Internal,
+            AttributionClass::User,
         ] {
             assert_eq!(AttributionClass::from_wire(class.as_str()), Some(class));
         }
@@ -92,10 +101,13 @@ mod tests {
         assert_eq!(AttributionClass::from_wire(""), None);
     }
 
-    // TEST1731: only Input is permanent — the retry machinery keys on this.
+    // TEST1731: Input and User are permanent — the retry machinery keys on
+    // this (a deterministic input failure, or a human's decision, is never
+    // retried automatically).
     #[test]
-    fn test1731_only_input_is_permanent() {
+    fn test1731_only_input_and_user_are_permanent() {
         assert!(AttributionClass::Input.is_permanent());
+        assert!(AttributionClass::User.is_permanent());
         assert!(!AttributionClass::Resource.is_permanent());
         assert!(!AttributionClass::Environment.is_permanent());
         assert!(!AttributionClass::Internal.is_permanent());
