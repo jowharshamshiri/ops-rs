@@ -115,6 +115,7 @@ where
                                 class: error.attribution_class(),
                                 reason: error.failure_reason(),
                                 arg_urn: error.failure_arg_urn().map(str::to_string),
+                                hint: error.failure_hint().map(str::to_string),
                             },
                             None => OpError::BatchFailed(chain),
                         });
@@ -785,5 +786,59 @@ mod tests {
             OpError::BatchFailed(_) => {}
             e => panic!("Expected BatchFailed, got {:?}", e),
         }
+    }
+
+    // TEST1905: a batch whose child fails with a classified refusal carries
+    // the child's hint through its own wrap, and through an outer batch;
+    // a child that declared none gives the batch no hint.
+    #[tokio::test]
+    async fn test1905_batch_carries_child_hint() {
+        use crate::failure::AttributionClass;
+
+        struct RefusingOp {
+            hint: Option<&'static str>,
+        }
+
+        #[async_trait]
+        impl Op<i32> for RefusingOp {
+            async fn perform(&self, _dry: &mut DryContext, _wet: &mut WetContext) -> OpResult<i32> {
+                Err(OpError::Classified {
+                    code: "NO_HANDLER".to_string(),
+                    class: AttributionClass::Environment,
+                    message: "cartridge ggufcartridge is not installed".to_string(),
+                    arg_urn: None,
+                    hint: self.hint.map(str::to_string),
+                })
+            }
+
+            fn metadata(&self) -> OpMetadata {
+                OpMetadata::builder("RefusingOp").build()
+            }
+        }
+
+        let inner = Arc::new(BatchOp::new(vec![Arc::new(RefusingOp {
+            hint: Some("capdag cartridge install ggufcartridge"),
+        }) as Arc<dyn Op<i32>>]));
+        let outer = BatchOp::new(vec![inner as Arc<dyn Op<Vec<i32>>>]);
+        let mut dry = DryContext::new();
+        let mut wet = WetContext::new();
+        let error = outer.perform(&mut dry, &mut wet).await.unwrap_err();
+        assert_eq!(error.failure_code(), Some("NO_HANDLER"));
+        assert_eq!(
+            error.failure_hint(),
+            Some("capdag cartridge install ggufcartridge"),
+            "the child's next step survives both batch wraps verbatim"
+        );
+
+        let unhinted = BatchOp::new(vec![
+            Arc::new(RefusingOp { hint: None }) as Arc<dyn Op<i32>>
+        ]);
+        let error = unhinted.perform(&mut dry, &mut wet).await.unwrap_err();
+        assert_eq!(error.failure_code(), Some("NO_HANDLER"));
+        assert_eq!(
+            error.failure_hint(),
+            None,
+            "a child that declared no hint gives the batch none"
+        );
     }
 }

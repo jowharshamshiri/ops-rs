@@ -43,6 +43,6 @@ edition = "2021"
 keywords = ["ops", "async", "execution", "framework"]
 license = "MIT"
 name = "ops-rs"
-version = "1.66.639"
+version = "1.67.644"
 authors = ["Bahram Joharshamshiri <jowharshamshiri@gmail.com>"]
 repository = "https://github.com/jowharshamshiri/ops"

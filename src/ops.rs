@@ -69,24 +69,28 @@ pub fn wrap_nested_op_exception(trigger_name: &str, error: OpError) -> OpError {
             class,
             reason,
             arg_urn,
+            hint,
         } => OpError::WrappedClassified {
             chain: format!("Batch op '{}' failed: {}", trigger_name, chain),
             code,
             class,
             reason,
             arg_urn,
+            hint,
         },
         OpError::Classified {
             code,
             class,
             message,
             arg_urn,
+            hint,
         } => OpError::WrappedClassified {
             chain: format!("Op '{}' failed: {}: {}", trigger_name, code, message),
             code,
             class,
             reason: message,
             arg_urn,
+            hint,
         },
         OpError::Aborted(reason) => {
             // Aborted errors should preserve their nature and not be wrapped as execution failures
@@ -178,6 +182,7 @@ mod tests {
             class: AttributionClass::Input,
             message: "prompt too large".to_string(),
             arg_urn: Some("media:prompt;textable".to_string()),
+            hint: None,
         };
         let wrapped = wrap_nested_op_exception("GenerateOp", classified);
         match wrapped {
@@ -187,6 +192,7 @@ mod tests {
                 class,
                 reason,
                 arg_urn,
+                ..
             } => {
                 assert!(chain.contains("GenerateOp"), "the wrap names the op");
                 assert!(chain.contains("prompt too large"));
@@ -212,6 +218,7 @@ mod tests {
                 class: AttributionClass::Input,
                 reason: "prompt too large".to_string(),
                 arg_urn: Some("media:prompt;textable".to_string()),
+                hint: None,
             },
         );
         match rewrapped {
@@ -221,6 +228,7 @@ mod tests {
                 class,
                 reason,
                 arg_urn,
+                ..
             } => {
                 assert!(chain.contains("OuterBatch"));
                 assert!(chain.contains("GenerateOp"));
@@ -231,6 +239,52 @@ mod tests {
             }
             other => panic!("expected WrappedClassified, got {:?}", other),
         }
+    }
+
+    // TEST1904: the emit source's hint — its next step for the user — is
+    // carried verbatim through wrapping and re-wrapping, and a failure that
+    // declared none stays without one: wrapping never supplies a hint.
+    #[test]
+    fn test1904_wrap_carries_hint() {
+        use crate::failure::AttributionClass;
+
+        let refusal = OpError::Classified {
+            code: "NO_HANDLER".to_string(),
+            class: AttributionClass::Environment,
+            message: "cartridge ggufcartridge is not installed".to_string(),
+            arg_urn: None,
+            hint: Some("capdag cartridge install ggufcartridge".to_string()),
+        };
+        let wrapped = wrap_nested_op_exception("PeerCallOp", refusal);
+        assert_eq!(
+            wrapped.failure_hint(),
+            Some("capdag cartridge install ggufcartridge"),
+            "the origin's next step survives wrapping verbatim"
+        );
+        let rewrapped = wrap_nested_op_exception("SummarizeOp", wrapped);
+        assert!(rewrapped.to_string().contains("SummarizeOp"));
+        assert_eq!(
+            rewrapped.failure_hint(),
+            Some("capdag cartridge install ggufcartridge"),
+            "re-wrapping keeps the origin's next step"
+        );
+
+        let unhinted = OpError::Classified {
+            code: "NO_HANDLER".to_string(),
+            class: AttributionClass::Environment,
+            message: "no handler for the cap".to_string(),
+            arg_urn: None,
+            hint: None,
+        };
+        let rewrapped = wrap_nested_op_exception(
+            "SummarizeOp",
+            wrap_nested_op_exception("PeerCallOp", unhinted),
+        );
+        assert_eq!(
+            rewrapped.failure_hint(),
+            None,
+            "no hint declared means none served through any wrapping"
+        );
     }
 
     // TEST0008: Verify wrap_runtime_exception converts a boxed std error into an OpError::ExecutionFailed

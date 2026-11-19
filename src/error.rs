@@ -31,6 +31,10 @@ pub enum OpError {
         /// binding/validation failures can; runtime ERR frames cannot).
         /// Carried verbatim through wrapping, never invented downstream.
         arg_urn: Option<String>,
+        /// The origin's next step for the user, verbatim, when it declared
+        /// one (e.g. the command that installs what is missing). Carried
+        /// through wrapping, never invented downstream.
+        hint: Option<String>,
     },
 
     #[error("Op aborted: {0}")]
@@ -55,6 +59,10 @@ pub enum OpError {
         /// attributable" and is never upgraded by wrapping layers
         /// (docs/failure-taxonomy.md discipline).
         arg_urn: Option<String>,
+        /// The emit source's next step for the user (e.g. the command that
+        /// installs what is missing), when it declared one. `None` means it
+        /// declared none, and wrapping layers never supply one.
+        hint: Option<String>,
     },
 
     #[error(transparent)]
@@ -95,6 +103,17 @@ impl OpError {
         }
     }
 
+    /// The next step the emit source declared for the user, through any
+    /// wrapping. `None` for every unclassified variant and for classified
+    /// failures whose source declared no hint — never guessed here.
+    pub fn failure_hint(&self) -> Option<&str> {
+        match self {
+            Self::Classified { hint, .. } => hint.as_deref(),
+            Self::WrappedClassified { hint, .. } => hint.as_deref(),
+            _ => None,
+        }
+    }
+
     /// The LEAF human reason — the origin's own message for classified
     /// failures, the Display chain otherwise.
     pub fn failure_reason(&self) -> String {
@@ -121,12 +140,14 @@ impl Clone for OpError {
                 class,
                 reason,
                 arg_urn,
+                hint,
             } => Self::WrappedClassified {
                 chain: chain.clone(),
                 code: code.clone(),
                 class: *class,
                 reason: reason.clone(),
                 arg_urn: arg_urn.clone(),
+                hint: hint.clone(),
             },
             Self::Aborted(msg) => Self::Aborted(msg.clone()),
             Self::Trigger(msg) => Self::Trigger(msg.clone()),
@@ -135,11 +156,13 @@ impl Clone for OpError {
                 class,
                 message,
                 arg_urn,
+                hint,
             } => Self::Classified {
                 code: code.clone(),
                 class: *class,
                 message: message.clone(),
                 arg_urn: arg_urn.clone(),
+                hint: hint.clone(),
             },
             Self::Other(boxed_error) => Self::ExecutionFailed(format!("{}", boxed_error)),
         }
@@ -233,6 +256,7 @@ mod tests {
             class: AttributionClass::Input,
             message: "prompt too large".to_string(),
             arg_urn: Some("media:prompt;textable".to_string()),
+            hint: Some("shorten the prompt".to_string()),
         };
         assert_eq!(classified.attribution_class(), AttributionClass::Input);
         assert_eq!(classified.failure_code(), Some("CONTEXT_OVERFLOW"));
@@ -242,6 +266,11 @@ mod tests {
             Some("media:prompt;textable"),
             "the emit source's argument attribution is served structurally"
         );
+        assert_eq!(
+            classified.failure_hint(),
+            Some("shorten the prompt"),
+            "the emit source's next step is served structurally"
+        );
         assert_eq!(classified.to_string(), "CONTEXT_OVERFLOW: prompt too large");
 
         let wrapped = OpError::WrappedClassified {
@@ -250,6 +279,7 @@ mod tests {
             class: AttributionClass::Input,
             reason: "prompt too large".to_string(),
             arg_urn: None,
+            hint: None,
         };
         assert_eq!(wrapped.attribution_class(), AttributionClass::Input);
         assert_eq!(wrapped.failure_code(), Some("CONTEXT_OVERFLOW"));
@@ -257,6 +287,11 @@ mod tests {
             wrapped.failure_arg_urn(),
             None,
             "no attribution declared means none served — never guessed"
+        );
+        assert_eq!(
+            wrapped.failure_hint(),
+            None,
+            "no hint declared means none served — never guessed"
         );
         assert_eq!(
             wrapped.failure_reason(),
@@ -272,6 +307,7 @@ mod tests {
         let plain = OpError::ExecutionFailed("boom".to_string());
         assert_eq!(plain.attribution_class(), AttributionClass::Internal);
         assert_eq!(plain.failure_code(), None);
+        assert_eq!(plain.failure_hint(), None);
     }
 
     // TEST1902: cloning a classified error preserves its full identity —
@@ -286,12 +322,14 @@ mod tests {
             class: AttributionClass::Resource,
             reason: "no VRAM".to_string(),
             arg_urn: Some("media:model-spec;textable".to_string()),
+            hint: Some("free GPU memory and retry".to_string()),
         };
         let cloned = original.clone();
         assert_eq!(cloned.attribution_class(), AttributionClass::Resource);
         assert_eq!(cloned.failure_code(), Some("GPU_OUT_OF_MEMORY"));
         assert_eq!(cloned.failure_reason(), "no VRAM");
         assert_eq!(cloned.failure_arg_urn(), Some("media:model-spec;textable"));
+        assert_eq!(cloned.failure_hint(), Some("free GPU memory and retry"));
     }
 
     // TEST0111: Convert a serde_json::Error into OpError via From impl
