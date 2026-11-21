@@ -1,3 +1,8 @@
 /target
 .scrap/
 Cargo.lock
+.wsb/wsb.db
+.wsb/state.json
+.wsb/sessions.db*
+.wsb/logs/
+.wsb/workbench.json
